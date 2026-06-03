@@ -1,24 +1,15 @@
-// yahoo-finance2 is ESM-only and ships no TypeScript types. We hide the import
-// specifier from TS via Function() so it doesn't try to resolve it at compile
-// time, then load it lazily at runtime through Node's native dynamic import.
-const dynamicImport: (s: string) => Promise<any> = new Function(
-  's',
-  'return import(s)'
-) as any;
+import axios from 'axios';
 
-let _yf: any = null;
-async function yf(): Promise<any> {
-  if (_yf) return _yf;
-  const mod: any = await dynamicImport('yahoo-finance2');
-  const inst = mod.default || mod;
-  try {
-    inst.suppressNotices?.(['yahooSurvey', 'ripHistorical']);
-  } catch {
-    /* ignore */
-  }
-  _yf = inst;
-  return _yf;
-}
+// Yahoo's chart + search endpoints are public, JSON, and don't need auth
+// (the quoteSummary endpoint now requires a crumb cookie — we skip it).
+// All requests carry a browser-like User-Agent to avoid being 403'd.
+
+const UA = {
+  'User-Agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+    '(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  Accept: 'application/json, text/plain, */*',
+};
 
 export interface NormalizedQuote {
   price: number;
@@ -57,59 +48,104 @@ export interface NormalizedNews {
   imageUrl?: string;
 }
 
-export async function yahooQuote(ticker: string): Promise<NormalizedQuote | null> {
+interface ChartFetch {
+  snapshot: NormalizedQuote;
+  bars: NormalizedBar[];
+  name?: string;
+}
+
+async function fetchChart(ticker: string, range = '6mo'): Promise<ChartFetch | null> {
   try {
-    const finance = await yf();
-    const q: any = await finance.quote(ticker);
-    if (!q || typeof q.regularMarketPrice !== 'number') return null;
-    return {
-      price: q.regularMarketPrice,
-      open: q.regularMarketOpen,
-      high: q.regularMarketDayHigh,
-      low: q.regularMarketDayLow,
-      volume: q.regularMarketVolume,
-      prevClose: q.regularMarketPreviousClose,
-      change: q.regularMarketChange,
-      changePct: q.regularMarketChangePercent,
-      marketCap: q.marketCap,
-      currency: q.currency,
-      name: q.longName || q.shortName,
+    const { data } = await axios.get(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}`,
+      {
+        params: { range, interval: '1d', includePrePost: false },
+        headers: UA,
+        timeout: 9000,
+      }
+    );
+    const result = data?.chart?.result?.[0];
+    if (!result || !result.meta) return null;
+    const meta = result.meta;
+    const ts: number[] = result.timestamp || [];
+    const q = result.indicators?.quote?.[0];
+    if (!q || !ts.length) return null;
+
+    const bars: NormalizedBar[] = ts
+      .map((t, i): NormalizedBar | null => {
+        if (q.close[i] == null) return null;
+        return {
+          date: new Date(t * 1000).toISOString().slice(0, 10),
+          open: q.open[i] ?? q.close[i],
+          high: q.high[i] ?? q.close[i],
+          low: q.low[i] ?? q.close[i],
+          close: q.close[i],
+          volume: q.volume[i] ?? 0,
+        };
+      })
+      .filter((b): b is NormalizedBar => b !== null);
+
+    if (!bars.length) return null;
+    const last = bars[bars.length - 1];
+
+    const price: number = meta.regularMarketPrice ?? last.close;
+    const prevClose: number = meta.chartPreviousClose ?? meta.previousClose ?? last.close;
+    const change = price - prevClose;
+    const changePct = prevClose ? (change / prevClose) * 100 : 0;
+
+    const snapshot: NormalizedQuote = {
+      price,
+      open: last.open,
+      high: last.high,
+      low: last.low,
+      volume: last.volume,
+      prevClose,
+      change,
+      changePct,
       source: 'yahoo',
-      asOf: q.regularMarketTime ? new Date(q.regularMarketTime).toISOString() : new Date().toISOString(),
+      currency: meta.currency,
+      asOf: new Date((meta.regularMarketTime || ts[ts.length - 1]) * 1000).toISOString(),
+      name: meta.longName || meta.shortName,
     };
-  } catch {
+
+    return { snapshot, bars, name: meta.longName || meta.shortName || meta.instrumentName };
+  } catch (err: any) {
+    console.warn(`  ✗ yahoo:chart ${ticker} ${err?.response?.status || err?.code || 'ERR'}`);
     return null;
   }
 }
 
-export async function yahooHistory(ticker: string, daysBack = 120): Promise<NormalizedBar[] | null> {
-  try {
-    const finance = await yf();
-    const period1 = new Date();
-    period1.setDate(period1.getDate() - daysBack);
-    const result: any = await finance.chart(ticker, { period1, interval: '1d' });
-    const quotes = result?.quotes;
-    if (!Array.isArray(quotes)) return null;
-    return quotes
-      .filter((b: any) => b.close != null)
-      .map((b: any): NormalizedBar => ({
-        date: new Date(b.date).toISOString().slice(0, 10),
-        open: b.open ?? b.close,
-        high: b.high ?? b.close,
-        low: b.low ?? b.close,
-        close: b.close,
-        volume: b.volume ?? 0,
-      }));
-  } catch {
-    return null;
+// Short-lived cache so yahooQuote/yahooHistory/yahooProfile share one HTTP fetch.
+const chartCache = new Map<string, Promise<ChartFetch | null>>();
+function chart(ticker: string): Promise<ChartFetch | null> {
+  const key = ticker.toUpperCase();
+  let p = chartCache.get(key);
+  if (!p) {
+    p = fetchChart(key);
+    chartCache.set(key, p);
+    setTimeout(() => chartCache.delete(key), 30_000);
   }
+  return p;
+}
+
+export async function yahooQuote(ticker: string): Promise<NormalizedQuote | null> {
+  const c = await chart(ticker);
+  return c?.snapshot ?? null;
+}
+
+export async function yahooHistory(ticker: string, _daysBack = 120): Promise<NormalizedBar[] | null> {
+  const c = await chart(ticker);
+  return c?.bars ?? null;
 }
 
 export async function yahooNews(ticker: string, limit = 6): Promise<NormalizedNews[] | null> {
   try {
-    const finance = await yf();
-    const result: any = await finance.search(ticker, { newsCount: limit });
-    const items = result?.news;
+    const { data } = await axios.get('https://query1.finance.yahoo.com/v1/finance/search', {
+      params: { q: ticker, newsCount: limit, quotesCount: 0, enableFuzzyQuery: false },
+      headers: UA,
+      timeout: 7000,
+    });
+    const items = data?.news;
     if (!Array.isArray(items)) return null;
     return items.slice(0, limit).map((n: any): NormalizedNews => ({
       id: n.uuid || n.link,
@@ -121,7 +157,8 @@ export async function yahooNews(ticker: string, limit = 6): Promise<NormalizedNe
         : new Date().toISOString(),
       imageUrl: n.thumbnail?.resolutions?.[0]?.url,
     }));
-  } catch {
+  } catch (err: any) {
+    console.warn(`  ✗ yahoo:news ${ticker} ${err?.response?.status || err?.code || 'ERR'}`);
     return null;
   }
 }
@@ -129,16 +166,10 @@ export async function yahooNews(ticker: string, limit = 6): Promise<NormalizedNe
 export async function yahooProfile(
   ticker: string
 ): Promise<{ name?: string; sector?: string; industry?: string; summary?: string } | null> {
-  try {
-    const finance = await yf();
-    const result: any = await finance.quoteSummary(ticker, { modules: ['assetProfile', 'price'] });
-    return {
-      name: result?.price?.longName || result?.price?.shortName,
-      sector: result?.assetProfile?.sector,
-      industry: result?.assetProfile?.industry,
-      summary: result?.assetProfile?.longBusinessSummary,
-    };
-  } catch {
-    return null;
-  }
+  const c = await chart(ticker);
+  if (!c?.name) return null;
+  // Full profile (sector/industry/summary) needs the quoteSummary endpoint
+  // which now requires a crumb cookie. We surface just the name here; richer
+  // profile fields come from Finnhub when its API key is set.
+  return { name: c.name };
 }
