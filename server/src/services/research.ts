@@ -11,6 +11,7 @@ import {
   yahooQuote,
 } from './yahoo';
 import { stooqHistory } from './stooq';
+import { twelveDataHistory, twelveDataProfile, twelveDataQuote } from './twelveData';
 
 // -------- Technical indicators (computed locally so we never depend on a paid tier) --------
 
@@ -130,22 +131,39 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
   console.log(`▶ Research request: ${ticker}`);
   const providers: string[] = [];
 
-  const [massive, fhQuote, fhNews, fhProfile, avOverview, avEarnings, yQuote, yHistory, yNews, yProfile, sqHistory] =
-    await Promise.all([
-      fetchMassive(ticker),
-      finnhubQuote(ticker),
-      finnhubNews(ticker, 6),
-      finnhubProfile(ticker),
-      alphaVantageOverview(ticker),
-      alphaVantageEarnings(ticker),
-      yahooQuote(ticker),
-      yahooHistory(ticker, 120),
-      yahooNews(ticker, 6),
-      yahooProfile(ticker),
-      stooqHistory(ticker, 200),
-    ]);
+  const [
+    massive,
+    fhQuote,
+    fhNews,
+    fhProfile,
+    avOverview,
+    avEarnings,
+    yQuote,
+    yHistory,
+    yNews,
+    yProfile,
+    sqHistory,
+    tdQuote,
+    tdHistory,
+    tdProfile,
+  ] = await Promise.all([
+    fetchMassive(ticker),
+    finnhubQuote(ticker),
+    finnhubNews(ticker, 6),
+    finnhubProfile(ticker),
+    alphaVantageOverview(ticker),
+    alphaVantageEarnings(ticker),
+    yahooQuote(ticker),
+    yahooHistory(ticker, 120),
+    yahooNews(ticker, 6),
+    yahooProfile(ticker),
+    stooqHistory(ticker, 200),
+    twelveDataQuote(ticker),
+    twelveDataHistory(ticker, 200),
+    twelveDataProfile(ticker),
+  ]);
 
-  // Profile (Finnhub → Yahoo)
+  // Profile (Finnhub → Yahoo → Twelve Data)
   const profile = fhProfile
     ? {
         name: fhProfile.name,
@@ -154,16 +172,26 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
         logo: fhProfile.logo,
         website: fhProfile.weburl,
         marketCap: fhProfile.marketCap,
-        sector: yProfile?.sector,
-        summary: yProfile?.summary,
+        sector: yProfile?.sector || tdProfile?.sector,
+        summary: yProfile?.summary || tdProfile?.description,
       }
     : yProfile
     ? { name: yProfile.name, sector: yProfile.sector, industry: yProfile.industry, summary: yProfile.summary }
+    : tdProfile
+    ? {
+        name: tdProfile.name,
+        sector: tdProfile.sector,
+        industry: tdProfile.industry,
+        exchange: tdProfile.exchange,
+        summary: tdProfile.description,
+        website: tdProfile.website,
+      }
     : null;
   if (fhProfile) providers.push('finnhub');
   if (yProfile) providers.push('yahoo');
+  if (tdProfile) providers.push('twelvedata');
 
-  // Price history (Massive → Yahoo → Stooq)
+  // Price history (Massive → Yahoo → Twelve Data → Stooq)
   let priceHistory: NormalizedBar[] | null = null;
   if (massive.priceHistory?.results?.length) {
     priceHistory = massive.priceHistory.results.map((r: any) => ({
@@ -177,6 +205,9 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     providers.push('massive');
   } else if (yHistory && yHistory.length) {
     priceHistory = yHistory;
+  } else if (tdHistory && tdHistory.length) {
+    priceHistory = tdHistory;
+    providers.push('twelvedata');
   } else if (sqHistory && sqHistory.length) {
     priceHistory = sqHistory;
     providers.push('stooq');
@@ -204,6 +235,8 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     snapshot = fhQuote;
   } else if (yQuote) {
     snapshot = yQuote;
+  } else if (tdQuote) {
+    snapshot = tdQuote;
   } else if (priceHistory && priceHistory.length >= 2) {
     const last = priceHistory[priceHistory.length - 1];
     const prev = priceHistory[priceHistory.length - 2];
