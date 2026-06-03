@@ -10,6 +10,7 @@ import {
   yahooProfile,
   yahooQuote,
 } from './yahoo';
+import { stooqHistory } from './stooq';
 
 // -------- Technical indicators (computed locally so we never depend on a paid tier) --------
 
@@ -129,7 +130,7 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
   console.log(`▶ Research request: ${ticker}`);
   const providers: string[] = [];
 
-  const [massive, fhQuote, fhNews, fhProfile, avOverview, avEarnings, yQuote, yHistory, yNews, yProfile] =
+  const [massive, fhQuote, fhNews, fhProfile, avOverview, avEarnings, yQuote, yHistory, yNews, yProfile, sqHistory] =
     await Promise.all([
       fetchMassive(ticker),
       finnhubQuote(ticker),
@@ -141,6 +142,7 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
       yahooHistory(ticker, 120),
       yahooNews(ticker, 6),
       yahooProfile(ticker),
+      stooqHistory(ticker, 200),
     ]);
 
   // Profile (Finnhub → Yahoo)
@@ -161,7 +163,7 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
   if (fhProfile) providers.push('finnhub');
   if (yProfile) providers.push('yahoo');
 
-  // Price history (Massive → Yahoo)
+  // Price history (Massive → Yahoo → Stooq)
   let priceHistory: NormalizedBar[] | null = null;
   if (massive.priceHistory?.results?.length) {
     priceHistory = massive.priceHistory.results.map((r: any) => ({
@@ -175,6 +177,9 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     providers.push('massive');
   } else if (yHistory && yHistory.length) {
     priceHistory = yHistory;
+  } else if (sqHistory && sqHistory.length) {
+    priceHistory = sqHistory;
+    providers.push('stooq');
   }
 
   // Snapshot (Massive → Finnhub → Yahoo → derived)
