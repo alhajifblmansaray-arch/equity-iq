@@ -1,0 +1,21 @@
+{
+  "name": "EquityIQ",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/equity-iq",
+  "forwardPorts": [3001, 5173],
+  "portsAttributes": {
+    "3001": { "label": "API (Express)", "onAutoForward": "silent" },
+    "5173": { "label": "UI (Vite)",     "onAutoForward": "openBrowser" }
+  },
+  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss"
+      ]
+    }
+  }
+}
