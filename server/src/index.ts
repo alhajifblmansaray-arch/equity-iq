@@ -10,6 +10,7 @@ import { configurePassport } from './config/passport';
 import authRoutes from './routes/auth';
 import researchRoutes from './routes/research';
 import userRoutes from './routes/user';
+import newsRoutes from './routes/news';
 
 const PORT = Number(process.env.PORT) || 3001;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
@@ -57,6 +58,7 @@ async function main(): Promise<void> {
   app.use('/api/auth', authRoutes);
   app.use('/api/research', researchRoutes);
   app.use('/api/user', userRoutes);
+  app.use('/api/news', newsRoutes);
 
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Unhandled error:', err);

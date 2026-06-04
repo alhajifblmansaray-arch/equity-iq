@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { buildResearchReport } from '../services/research';
 import { twelveDataIntraday, twelveDataQuote, IntradayInterval } from '../services/twelveData';
-import { finnhubQuote } from '../services/finnhub';
-import { yahooQuote } from '../services/yahoo';
+import { finnhubMarketNews, finnhubNews, finnhubQuote } from '../services/finnhub';
+import { yahooNews, yahooQuote } from '../services/yahoo';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
@@ -71,6 +71,27 @@ router.get('/:ticker/intraday', requireAuth, async (req, res, next) => {
     const quote =
       (await twelveDataQuote(ticker)) || (await finnhubQuote(ticker)) || (await yahooQuote(ticker));
     res.json({ ticker, interval, bars, quote });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Expanded news feed for a specific ticker — used by the dedicated News page.
+router.get('/:ticker/news', requireAuth, async (req, res, next) => {
+  const ticker = String(req.params.ticker || '').toUpperCase().trim();
+  if (!validTicker(ticker)) {
+    res.status(400).json({ error: 'Invalid ticker symbol.' });
+    return;
+  }
+  const limit = Math.min(50, Math.max(5, Number(req.query.limit) || 25));
+  const days = Math.min(60, Math.max(7, Number(req.query.days) || 30));
+  try {
+    let articles = await finnhubNews(ticker, limit, days);
+    if (!articles || articles.length === 0) {
+      const yn = await yahooNews(ticker, limit);
+      if (yn && yn.length) articles = yn;
+    }
+    res.json({ ticker, articles: articles || [] });
   } catch (err) {
     next(err);
   }

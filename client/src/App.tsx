@@ -8,6 +8,7 @@ import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Watchlist from './pages/Watchlist';
 import Live from './pages/Live';
+import News from './pages/News';
 
 function FullScreenLoader() {
   return (
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/watchlist" element={<Watchlist />} />
         <Route path="/live" element={<Live />} />
+        <Route path="/news" element={<News />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

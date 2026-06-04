@@ -1,4 +1,5 @@
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Newspaper } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { ResearchReport } from '../types';
 import { fmtRelative, sentimentPill } from '../lib/helpers';
 
@@ -10,8 +11,20 @@ export default function NewsCard({ data }: Props) {
   if (!data.news.length) return null;
   return (
     <div className="card animate-fadeUp animate-delay-4">
-      <div className="eyebrow mb-1">Latest news</div>
-      <h3 className="section-title mb-5">Headlines</h3>
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <div className="eyebrow mb-1">Latest news</div>
+          <h3 className="section-title">Headlines</h3>
+        </div>
+        <Link
+          to={`/news?ticker=${data.ticker}`}
+          className="inline-flex items-center gap-1.5 rounded-full bg-cream-tint px-3 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink hover:bg-white transition"
+          title={`All ${data.ticker} news`}
+        >
+          <Newspaper size={13} strokeWidth={1.8} />
+          All {data.ticker} news
+        </Link>
+      </div>
 
       <div className="space-y-0">
         {data.news.slice(0, 5).map((n, i, arr) => {

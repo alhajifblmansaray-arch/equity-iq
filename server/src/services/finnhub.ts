@@ -32,17 +32,49 @@ export async function finnhubQuote(ticker: string): Promise<NormalizedQuote | nu
   }
 }
 
-export async function finnhubNews(ticker: string, limit = 6): Promise<NormalizedNews[] | null> {
+export async function finnhubNews(ticker: string, limit = 25, daysBack = 30): Promise<NormalizedNews[] | null> {
   const k = key();
   if (!k) return null;
   try {
     const to = new Date();
     const from = new Date();
-    from.setDate(from.getDate() - 14);
+    from.setDate(from.getDate() - daysBack);
     const fmt = (d: Date) => d.toISOString().slice(0, 10);
     const { data } = await axios.get(`${BASE}/company-news`, {
       params: { symbol: ticker, from: fmt(from), to: fmt(to), token: k },
-      timeout: 6000,
+      timeout: 8000,
+    });
+    if (!Array.isArray(data)) {
+      console.warn(`  ✗ finnhub:news ${ticker} non-array response (${data?.error || typeof data})`);
+      return null;
+    }
+    if (data.length === 0) {
+      console.warn(`  · finnhub:news ${ticker} empty (window ${fmt(from)}…${fmt(to)})`);
+      return [];
+    }
+    return data.slice(0, limit).map((n: any): NormalizedNews => ({
+      id: String(n.id),
+      title: n.headline,
+      description: n.summary,
+      url: n.url,
+      publisher: n.source,
+      publishedAt: new Date(n.datetime * 1000).toISOString(),
+      imageUrl: n.image,
+    }));
+  } catch (err: any) {
+    console.warn(`  ✗ finnhub:news ${ticker} ${err?.response?.status || err?.code || 'ERR'}`);
+    return null;
+  }
+}
+
+// General market news (no ticker; for News page side rail / fallback)
+export async function finnhubMarketNews(limit = 10): Promise<NormalizedNews[] | null> {
+  const k = key();
+  if (!k) return null;
+  try {
+    const { data } = await axios.get(`${BASE}/news`, {
+      params: { category: 'general', token: k },
+      timeout: 8000,
     });
     if (!Array.isArray(data)) return null;
     return data.slice(0, limit).map((n: any): NormalizedNews => ({
@@ -54,7 +86,8 @@ export async function finnhubNews(ticker: string, limit = 6): Promise<Normalized
       publishedAt: new Date(n.datetime * 1000).toISOString(),
       imageUrl: n.image,
     }));
-  } catch {
+  } catch (err: any) {
+    console.warn(`  ✗ finnhub:market-news ${err?.response?.status || err?.code || 'ERR'}`);
     return null;
   }
 }

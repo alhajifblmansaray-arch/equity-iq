@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   Activity,
-  ChevronLeft,
   ChevronRight,
   LayoutDashboard,
   LogOut,
   Menu,
+  Newspaper,
   Star,
   X,
 } from 'lucide-react';
@@ -18,6 +18,7 @@ const NAV: Array<{ to: string; label: string; icon: React.ReactNode }> = [
   { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} strokeWidth={1.8} /> },
   { to: '/watchlist', label: 'Watchlist', icon: <Star size={18} strokeWidth={1.8} /> },
   { to: '/live', label: 'Live charts', icon: <Activity size={18} strokeWidth={1.8} /> },
+  { to: '/news', label: 'News', icon: <Newspaper size={18} strokeWidth={1.8} /> },
 ];
 
 export default function Sidebar() {

@@ -42,6 +42,18 @@ export const research = {
         params: { interval, outputsize },
       })
       .then((r) => r.data),
+  news: (ticker: string, limit = 25, days = 30) =>
+    api
+      .get<{ ticker: string; articles: import('../types').NormalizedNews[] }>(
+        `/research/${encodeURIComponent(ticker.toUpperCase())}/news`,
+        { params: { limit, days } }
+      )
+      .then((r) => r.data),
+};
+
+export const newsApi = {
+  market: () =>
+    api.get<{ articles: import('../types').NormalizedNews[] }>('/news/market').then((r) => r.data),
 };
 
 export const watchlist = {
