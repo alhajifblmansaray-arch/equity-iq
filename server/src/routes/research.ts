@@ -5,6 +5,7 @@ import { finnhubMarketNews, finnhubNews, finnhubQuote } from '../services/finnhu
 import { yahooHistory, yahooNews, yahooQuote } from '../services/yahoo';
 import { twelveDataHistory } from '../services/twelveData';
 import { stooqHistory } from '../services/stooq';
+import { finnhubStream } from '../services/finnhubStream';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
@@ -31,6 +32,51 @@ router.get('/:ticker', requireAuth, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// Live price stream — Server-Sent Events. The browser subscribes via
+// EventSource, the server holds one Finnhub WebSocket per process and fans
+// trade ticks out to any listening clients.
+router.get('/:ticker/stream', requireAuth, (req, res) => {
+  const ticker = String(req.params.ticker || '').toUpperCase().trim();
+  if (!validTicker(ticker)) {
+    res.status(400).end();
+    return;
+  }
+  if (!finnhubStream.enabled()) {
+    res.status(503).json({ error: 'Live stream unavailable — FINNHUB_API_KEY not set.' });
+    return;
+  }
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders?.();
+  res.write(`: connected ${ticker}\n\n`);
+
+  const handler = (tick: { ticker: string; price: number; volume: number; timestamp: number }) => {
+    res.write(`data: ${JSON.stringify(tick)}\n\n`);
+  };
+
+  finnhubStream.on(`trade:${ticker}`, handler);
+  finnhubStream.subscribe(ticker);
+
+  const heartbeat = setInterval(() => res.write(`: ping ${Date.now()}\n\n`), 25_000);
+
+  const cleanup = () => {
+    clearInterval(heartbeat);
+    finnhubStream.off(`trade:${ticker}`, handler);
+    finnhubStream.unsubscribe(ticker);
+    try {
+      res.end();
+    } catch {
+      /* ignore */
+    }
+  };
+
+  req.on('close', cleanup);
+  req.on('error', cleanup);
 });
 
 // Sparkline endpoint — last N daily closes. Cheap (shares Twelve Data history
@@ -90,14 +136,29 @@ router.get('/:ticker/intraday', requireAuth, async (req, res, next) => {
   const interval = VALID_INTERVALS.has(rawInterval) ? rawInterval : '5min';
   const outputsize = Math.min(500, Math.max(20, Number(req.query.outputsize) || 200));
   try {
-    const bars = await twelveDataIntraday(ticker, interval, outputsize);
+    let bars = await twelveDataIntraday(ticker, interval, outputsize);
+    let actualInterval: string = interval;
+    let fellBack = false;
+    // If intraday is rate-limited or unavailable, fall back to recent daily
+    // closes so the Live page still has something to show.
+    if (!bars || !bars.length) {
+      const daily =
+        (await twelveDataHistory(ticker, 60)) ||
+        (await yahooHistory(ticker, 60)) ||
+        (await stooqHistory(ticker, 60));
+      if (daily && daily.length) {
+        bars = daily.slice(-30);
+        actualInterval = '1day';
+        fellBack = true;
+      }
+    }
     if (!bars || !bars.length) {
       res.status(404).json({ error: `No intraday data for ${ticker}.` });
       return;
     }
     const quote =
       (await twelveDataQuote(ticker)) || (await finnhubQuote(ticker)) || (await yahooQuote(ticker));
-    res.json({ ticker, interval, bars, quote });
+    res.json({ ticker, interval: actualInterval, bars, quote, fellBack });
   } catch (err) {
     next(err);
   }

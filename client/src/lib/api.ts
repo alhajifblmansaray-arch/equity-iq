@@ -24,9 +24,10 @@ export type IntradayInterval = '1min' | '5min' | '15min' | '30min' | '1h';
 
 export interface IntradayResponse {
   ticker: string;
-  interval: IntradayInterval;
+  interval: IntradayInterval | '1day';
   bars: NormalizedBar[];
   quote: NormalizedQuote | null;
+  fellBack?: boolean;
 }
 
 export const research = {

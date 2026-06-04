@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Activity, AlertCircle, Pause, Play, TrendingDown, TrendingUp } from 'lucide-react';
@@ -7,6 +7,7 @@ import { useWatchlist } from '../contexts/WatchlistContext';
 import { IntradayInterval, research } from '../lib/api';
 import type { NormalizedBar, NormalizedQuote } from '../types';
 import { fmtPct, fmtPrice } from '../lib/helpers';
+import { useLivePrice } from '../hooks/useLivePrice';
 
 const INTERVALS: IntradayInterval[] = ['1min', '5min', '15min', '30min', '1h'];
 const INTERVAL_LABEL: Record<IntradayInterval, string> = {
@@ -69,7 +70,21 @@ export default function LivePage() {
   const first = bars && bars.length ? bars[0] : null;
   const sessionChange = first && last ? last.close - first.close : null;
   const sessionPct = first && first.close ? ((last!.close - first.close) / first.close) * 100 : null;
-  const up = (quote?.changePct ?? sessionPct ?? 0) >= 0;
+
+  // Real-time tick stream
+  const { tick: liveTick, lastUpdate: liveLastUpdate } = useLivePrice(ticker || null);
+  const isStreamingLive = useMemo(
+    () => !!(liveTick && liveLastUpdate && Date.now() - liveLastUpdate < 60_000),
+    [liveTick, liveLastUpdate]
+  );
+  const displayPrice = liveTick?.price ?? quote?.price ?? last?.close ?? null;
+  const liveChange =
+    liveTick && quote?.prevClose != null
+      ? { change: liveTick.price - quote.prevClose, pct: ((liveTick.price - quote.prevClose) / quote.prevClose) * 100 }
+      : null;
+  const effChange = liveChange?.change ?? quote?.change ?? sessionChange ?? 0;
+  const effPct = liveChange?.pct ?? quote?.changePct ?? sessionPct ?? 0;
+  const up = effPct >= 0;
   const color = up ? 'var(--forest)' : 'var(--brick)';
 
   const tickFmt = (d: string) => {
@@ -83,16 +98,21 @@ export default function LivePage() {
         <div className="flex items-center gap-2 mb-2">
           <Activity size={14} className="text-forest" />
           <span className="eyebrow">Live</span>
-          {!paused && ticker && (
-            <span className="pill pill-forest text-[10px] ml-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-forest animate-pulseDot" />
-              Streaming
-            </span>
+          {ticker && (
+            isStreamingLive ? (
+              <span className="pill pill-forest text-[10px] ml-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-forest animate-pulseDot" />
+                Streaming
+              </span>
+            ) : !paused ? (
+              <span className="pill pill-mute text-[10px] ml-1">Refreshing every 30s</span>
+            ) : null
           )}
         </div>
         <h1 className="font-serif text-4xl md:text-5xl tracking-tight2">Real-time charts</h1>
         <p className="text-ink-secondary mt-2 text-[15px]">
-          Intraday price action, auto-refreshing every 30 seconds.
+          Intraday price action with live tick updates. Falls back to daily bars when intraday isn't
+          available.
         </p>
       </header>
 
@@ -120,19 +140,19 @@ export default function LivePage() {
           <div className="flex items-start justify-between gap-4 flex-wrap mb-6">
             <div>
               <div className="eyebrow mb-1">{ticker}</div>
-              {quote ? (
+              {displayPrice != null ? (
                 <>
                   <div className="flex items-baseline gap-2">
                     <span className="text-ink-tertiary text-2xl font-serif">$</span>
-                    <span className="font-serif text-5xl md:text-6xl tracking-tight2 leading-none">
-                      {fmtPrice(quote.price)}
+                    <span className="font-serif text-5xl md:text-6xl tracking-tight2 leading-none tabular-nums">
+                      {fmtPrice(displayPrice)}
                     </span>
                   </div>
                   <div className={`mt-2 flex items-center gap-2 text-sm font-medium ${up ? 'text-forest' : 'text-brick'}`}>
                     {up ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                    <span>{up ? '+' : ''}{fmtPrice(quote.change)}</span>
-                    <span>({fmtPct(quote.changePct)})</span>
-                    <span className="text-ink-tertiary font-normal">past day</span>
+                    <span className="tabular-nums">{up ? '+' : ''}{fmtPrice(effChange)}</span>
+                    <span className="tabular-nums">({fmtPct(effPct)})</span>
+                    <span className="text-ink-tertiary font-normal">{isStreamingLive ? 'live' : 'past day'}</span>
                   </div>
                 </>
               ) : last ? (
