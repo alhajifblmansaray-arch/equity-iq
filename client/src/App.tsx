@@ -1,9 +1,13 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
+import { WatchlistProvider } from './contexts/WatchlistContext';
+import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import Watchlist from './pages/Watchlist';
+import Live from './pages/Live';
 
 function FullScreenLoader() {
   return (
@@ -16,11 +20,20 @@ function FullScreenLoader() {
   );
 }
 
-function ProtectedRoute({ children }: { children: JSX.Element }) {
+// Wraps every authenticated page in a single WatchlistProvider + Layout
+// (left sidebar + content area). All routes inside this <Route> render
+// inside <Outlet /> in Layout.
+function AuthenticatedShell() {
   const { user, loading } = useAuth();
   if (loading) return <FullScreenLoader />;
   if (!user) return <Navigate to="/login" replace />;
-  return children;
+  return (
+    <WatchlistProvider>
+      <Layout>
+        <Outlet />
+      </Layout>
+    </WatchlistProvider>
+  );
 }
 
 function PublicOnly({ children }: { children: JSX.Element }) {
@@ -36,7 +49,11 @@ export default function App() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
       <Route path="/signup" element={<PublicOnly><Signup /></PublicOnly>} />
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route element={<AuthenticatedShell />}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/watchlist" element={<Watchlist />} />
+        <Route path="/live" element={<Live />} />
+      </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
