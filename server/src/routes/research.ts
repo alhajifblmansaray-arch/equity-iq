@@ -168,7 +168,8 @@ router.get('/:ticker/intraday', requireAuth, async (req, res, next) => {
 });
 
 // AI thesis (Anthropic Claude). Returns one ~3-paragraph synthesis.
-import { generateThesis, isAnthropicEnabled } from '../services/anthropic';
+import { chatAboutTicker, generateOutlook, generateThesis, isAnthropicEnabled } from '../services/anthropic';
+import { z } from 'zod';
 
 router.post('/:ticker/thesis', requireAuth, async (req, res, next) => {
   const ticker = String(req.params.ticker || '').toUpperCase().trim();
@@ -239,6 +240,101 @@ router.post('/:ticker/thesis', requireAuth, async (req, res, next) => {
     } else {
       next(err);
     }
+  }
+});
+
+// Anthropic shared error handler — used by /chat and /outlook routes too.
+function handleAiError(err: any, res: any, next: any, label: string) {
+  const status: number | undefined = err?.status || err?.response?.status;
+  let apiMessage: string | undefined =
+    err?.error?.error?.message ||
+    err?.error?.message ||
+    err?.response?.data?.error?.message;
+  if (!apiMessage && typeof err?.message === 'string') {
+    const m = err.message.match(/\{[\s\S]+\}$/);
+    if (m) {
+      try {
+        const parsed = JSON.parse(m[0]);
+        apiMessage = parsed?.error?.message || parsed?.message;
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!apiMessage) apiMessage = err.message;
+  }
+  console.error(`${label} error:`, status || '', apiMessage || err);
+  if (status === 401) {
+    res.status(401).json({ error: 'Invalid ANTHROPIC_API_KEY.' });
+  } else if (status === 429) {
+    res.status(429).json({ error: 'Anthropic rate-limited. Try again in a moment.' });
+  } else if (/credit balance is too low|insufficient/i.test(apiMessage || '')) {
+    res.status(402).json({
+      error:
+        'Your Anthropic account is out of credits. Add credits at https://console.anthropic.com/settings/billing.',
+    });
+  } else if (apiMessage) {
+    res.status(status && status < 600 ? status : 500).json({ error: apiMessage });
+  } else {
+    next(err);
+  }
+}
+
+// Conversational follow-up — chat about a ticker with the full research as
+// preloaded system context.
+const chatSchema = z.object({
+  messages: z.array(
+    z.object({
+      role: z.enum(['user', 'assistant']),
+      content: z.string().min(1).max(2000),
+    })
+  ).min(1).max(20),
+});
+
+router.post('/:ticker/chat', requireAuth, async (req, res, next) => {
+  const ticker = String(req.params.ticker || '').toUpperCase().trim();
+  if (!validTicker(ticker)) {
+    res.status(400).json({ error: 'Invalid ticker.' });
+    return;
+  }
+  if (!isAnthropicEnabled()) {
+    res.status(503).json({ error: 'AI chat is unavailable. Set ANTHROPIC_API_KEY in server/.env.' });
+    return;
+  }
+  const parsed = chatSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid chat history.' });
+    return;
+  }
+  try {
+    const report = await buildResearchReport(ticker);
+    const result = await chatAboutTicker(report, parsed.data.messages);
+    res.json({ ticker, ...result });
+  } catch (err: any) {
+    handleAiError(err, res, next, 'Chat');
+  }
+});
+
+// Forward-looking Outlook — structured AI synthesis.
+router.post('/:ticker/outlook', requireAuth, async (req, res, next) => {
+  const ticker = String(req.params.ticker || '').toUpperCase().trim();
+  if (!validTicker(ticker)) {
+    res.status(400).json({ error: 'Invalid ticker.' });
+    return;
+  }
+  if (!isAnthropicEnabled()) {
+    res.status(503).json({ error: 'AI outlook is unavailable. Set ANTHROPIC_API_KEY in server/.env.' });
+    return;
+  }
+  try {
+    const report = await buildResearchReport(ticker);
+    if (!report.snapshot && !report.priceHistory) {
+      res.status(404).json({ error: `No data found for ${ticker}.` });
+      return;
+    }
+    const outlook = await generateOutlook(report);
+    res.json({ ticker, outlook });
+  } catch (err: any) {
+    handleAiError(err, res, next, 'Outlook');
   }
 });
 

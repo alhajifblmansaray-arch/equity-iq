@@ -63,6 +63,19 @@ export const research = {
         `/research/${encodeURIComponent(ticker.toUpperCase())}/thesis`
       )
       .then((r) => r.data),
+  chat: (ticker: string, messages: Array<{ role: 'user' | 'assistant'; content: string }>) =>
+    api
+      .post<{ ticker: string; reply: string; model: string }>(
+        `/research/${encodeURIComponent(ticker.toUpperCase())}/chat`,
+        { messages }
+      )
+      .then((r) => r.data),
+  outlook: (ticker: string) =>
+    api
+      .post<{ ticker: string; outlook: import('../types').Outlook }>(
+        `/research/${encodeURIComponent(ticker.toUpperCase())}/outlook`
+      )
+      .then((r) => r.data),
 };
 
 import type { PriceAlert } from '../types';

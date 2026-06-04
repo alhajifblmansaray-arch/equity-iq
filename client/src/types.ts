@@ -126,3 +126,51 @@ export interface PriceAlert {
   triggeredAt?: string;
   createdAt: string;
 }
+
+export type Confidence = 'low' | 'moderate' | 'high';
+export type Direction = 'up' | 'down' | 'flat';
+export type Impact = 'high' | 'medium' | 'low';
+
+export interface Prediction {
+  direction: Direction;
+  magnitudePct: number;
+  confidence: Confidence;
+  basis: string;
+}
+
+export interface Outlook {
+  industry: {
+    name: string;
+    tamUsd?: number;
+    growthPctAnnual?: number;
+    horizonYears?: number;
+    subAreas: string[];
+    summary: string;
+  };
+  positioning: {
+    rank: 'leader' | 'established' | 'challenger' | 'niche' | 'early';
+    moats: string[];
+    rationale: string;
+  };
+  catalysts: Array<{
+    label: string;
+    when: string;
+    impact: Impact;
+    direction: 'bullish' | 'bearish' | 'neutral';
+    note: string;
+  }>;
+  sentiment: {
+    news: number;
+    technical: number;
+    institutional?: number | null;
+    social?: number | null;
+    note: string;
+  };
+  predictions: {
+    day: Prediction;
+    week: Prediction;
+    month: Prediction;
+    year: Prediction;
+  };
+  summary: string;
+}

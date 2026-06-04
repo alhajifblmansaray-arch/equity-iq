@@ -122,3 +122,200 @@ export async function generateThesis(report: ResearchReport): Promise<ThesisResu
   thesisCache.set(cacheKey, { text, expires: Date.now() + TTL });
   return { text, model: response.model, cached: false };
 }
+
+// ---------------------------------------------------------------------------
+// Conversational follow-up — user asks anything about the ticker, we preload
+// the full research as system context so the model never has to guess.
+// ---------------------------------------------------------------------------
+
+const CHAT_SYSTEM = `You are a sharp equity analyst available for follow-up questions about a specific stock. You have its full research report below.
+
+Rules:
+- Stay tight: 2-6 sentences per answer unless the user explicitly asks for more.
+- Ground every claim in the report's data or widely-known facts. If a question can't be answered from the data, say so — don't invent numbers.
+- Never recommend buying or selling. Frame in conditional terms ("if X happens, then…").
+- Plain English. No jargon dumps. Bullet points only when the user asks for a list.
+- The user can see the report on their screen, so don't restate obvious metrics — interpret them.`;
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatResult {
+  reply: string;
+  model: string;
+}
+
+export async function chatAboutTicker(
+  report: ResearchReport,
+  history: ChatMessage[]
+): Promise<ChatResult> {
+  const c = getClient();
+  if (!c) {
+    return {
+      reply:
+        'AI chat is unavailable — the server has no ANTHROPIC_API_KEY configured. Add one in server/.env.',
+      model: 'none',
+    };
+  }
+  // Cap history at the last 10 messages to keep token use predictable.
+  const trimmed = history.slice(-10);
+  const systemBlock = `${CHAT_SYSTEM}\n\n=== Research data for ${report.ticker} ===\n${compactReport(report)}`;
+
+  const response = await c.messages.create({
+    model: MODEL,
+    max_tokens: 600,
+    system: systemBlock,
+    messages: trimmed.map((m) => ({ role: m.role, content: m.content })),
+  });
+
+  const reply = response.content
+    .filter((b: any) => b.type === 'text')
+    .map((b: any) => b.text)
+    .join('\n')
+    .trim();
+
+  return { reply, model: response.model };
+}
+
+// ---------------------------------------------------------------------------
+// Outlook — structured forward-looking JSON. Heavily constrained prompt so the
+// model can't fabricate dates, customers, or specific TAM figures it doesn't
+// know. Where it doesn't know, it says so.
+// ---------------------------------------------------------------------------
+
+export type Confidence = 'low' | 'moderate' | 'high';
+export type Direction = 'up' | 'down' | 'flat';
+export type Impact = 'high' | 'medium' | 'low';
+
+export interface Outlook {
+  industry: {
+    name: string;
+    tamUsd?: number;
+    growthPctAnnual?: number;
+    horizonYears?: number;
+    subAreas: string[];
+    summary: string;
+  };
+  positioning: {
+    rank: 'leader' | 'established' | 'challenger' | 'niche' | 'early';
+    moats: string[];
+    rationale: string;
+  };
+  catalysts: Array<{
+    label: string;
+    when: string;
+    impact: Impact;
+    direction: 'bullish' | 'bearish' | 'neutral';
+    note: string;
+  }>;
+  sentiment: {
+    news: number; // 1..5
+    technical: number;
+    institutional?: number | null;
+    social?: number | null;
+    note: string;
+  };
+  predictions: {
+    day: { direction: Direction; magnitudePct: number; confidence: Confidence; basis: string };
+    week: { direction: Direction; magnitudePct: number; confidence: Confidence; basis: string };
+    month: { direction: Direction; magnitudePct: number; confidence: Confidence; basis: string };
+    year: { direction: Direction; magnitudePct: number; confidence: Confidence; basis: string };
+  };
+  summary: string;
+}
+
+const OUTLOOK_SYSTEM = `You are a forward-looking equity analyst writing a structured Outlook for ${'${TICKER}'} for a research app.
+
+The user trusts you to be rigorous and not hallucinate. Constraints:
+1. Ground EVERY claim in the provided report data or widely-known facts about the sector. NEVER invent specific upcoming dates, customers, products, regulatory filings, or numbers that aren't in the data.
+2. For industry TAM and annual growth, only quote a figure if it's a widely-cited estimate you're confident about. Otherwise omit those fields. Be honest about uncertainty.
+3. For catalysts, only list items that:
+   (a) appear in the supplied news headlines,
+   (b) are the next earnings date (if provided), or
+   (c) are clearly-recurring macro events (e.g. Fed meeting, CPI print). Don't fabricate specific corporate events.
+4. Predictions are model output, not forecasts. Reasonable magnitude ranges:
+     day  ±0.3-3%       week ±1-6%
+     month ±2-15%      year ±5-50%
+   Higher confidence requires more aligned signals (technical + fundamental + news pointing the same way).
+5. Sentiment ratings 1 (very bearish) - 5 (very bullish). News and technical sentiment MUST be derivable from the data. Institutional/social may be null if you can't ground them.
+
+You MUST return ONLY valid JSON matching this exact schema, no markdown code fences, no commentary:
+
+{
+  "industry": {
+    "name": "Short industry name (≤40 chars)",
+    "tamUsd": optional number (USD raw, e.g. 21000000000000 for $21T),
+    "growthPctAnnual": optional number,
+    "horizonYears": optional number,
+    "subAreas": ["…", "…", "…"],
+    "summary": "1-2 sentence industry context"
+  },
+  "positioning": {
+    "rank": "leader" | "established" | "challenger" | "niche" | "early",
+    "moats": ["…", "…", "…"],
+    "rationale": "1 sentence"
+  },
+  "catalysts": [
+    { "label": "…", "when": "…", "impact": "high"|"medium"|"low", "direction": "bullish"|"bearish"|"neutral", "note": "1 sentence" }
+  ],
+  "sentiment": {
+    "news": 1-5,
+    "technical": 1-5,
+    "institutional": 1-5 OR null,
+    "social": 1-5 OR null,
+    "note": "1 sentence justifying the ratings"
+  },
+  "predictions": {
+    "day":   { "direction": "up"|"down"|"flat", "magnitudePct": number, "confidence": "low"|"moderate"|"high", "basis": "1 sentence" },
+    "week":  { same shape },
+    "month": { same shape },
+    "year":  { same shape }
+  },
+  "summary": "2-3 sentence overall forward view"
+}`;
+
+const outlookCache = new Map<string, { value: Outlook; expires: number }>();
+const OUTLOOK_TTL = 15 * 60_000;
+
+function extractJsonBlock(text: string): string {
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1 || end <= start) return text;
+  return text.slice(start, end + 1);
+}
+
+export async function generateOutlook(report: ResearchReport): Promise<Outlook> {
+  const c = getClient();
+  if (!c) throw new Error('AI outlook unavailable — set ANTHROPIC_API_KEY.');
+
+  const cached = outlookCache.get(report.ticker);
+  if (cached && cached.expires > Date.now()) return cached.value;
+
+  const userMessage = `Here is the research data for ${report.ticker}:\n\n${compactReport(report)}\n\nProduce the Outlook JSON described in your instructions. Today's date: ${new Date().toISOString().slice(0, 10)}.`;
+
+  const response = await c.messages.create({
+    model: MODEL,
+    max_tokens: 1400,
+    system: OUTLOOK_SYSTEM.replace('${TICKER}', report.ticker),
+    messages: [{ role: 'user', content: userMessage }],
+  });
+
+  const raw = response.content
+    .filter((b: any) => b.type === 'text')
+    .map((b: any) => b.text)
+    .join('\n');
+
+  const json = extractJsonBlock(raw);
+  let parsed: Outlook;
+  try {
+    parsed = JSON.parse(json) as Outlook;
+  } catch (err) {
+    console.error('Outlook JSON parse error:', err, '\nRaw:', raw.slice(0, 500));
+    throw new Error('AI returned malformed JSON. Try again.');
+  }
+
+  outlookCache.set(report.ticker, { value: parsed, expires: Date.now() + OUTLOOK_TTL });
+  return parsed;
+}
