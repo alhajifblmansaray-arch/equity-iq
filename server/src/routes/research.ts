@@ -5,6 +5,7 @@ import { finnhubMarketNews, finnhubNews, finnhubQuote } from '../services/finnhu
 import { yahooHistory, yahooNews, yahooQuote } from '../services/yahoo';
 import { twelveDataHistory } from '../services/twelveData';
 import { stooqHistory } from '../services/stooq';
+import { alphaVantageHistory } from '../services/alphaVantage';
 import { finnhubStream } from '../services/finnhubStream';
 import { requireAuth } from '../middleware/auth';
 
@@ -92,6 +93,7 @@ router.get('/:ticker/spark', requireAuth, async (req, res, next) => {
     let bars =
       (await twelveDataHistory(ticker, Math.max(30, days * 2))) ||
       (await yahooHistory(ticker, days * 2)) ||
+      (await alphaVantageHistory(ticker)) ||
       (await stooqHistory(ticker, days * 2));
     if (!bars || !bars.length) {
       res.status(404).json({ error: `No history for ${ticker}.` });
@@ -145,6 +147,7 @@ router.get('/:ticker/intraday', requireAuth, async (req, res, next) => {
       const daily =
         (await twelveDataHistory(ticker, 60)) ||
         (await yahooHistory(ticker, 60)) ||
+        (await alphaVantageHistory(ticker)) ||
         (await stooqHistory(ticker, 60));
       if (daily && daily.length) {
         bars = daily.slice(-30);
@@ -188,8 +191,29 @@ router.post('/:ticker/thesis', requireAuth, async (req, res, next) => {
     const thesis = await generateThesis(report);
     res.json({ ticker, ...thesis });
   } catch (err: any) {
-    console.error('Thesis error:', err?.message || err);
-    next(err);
+    const status = err?.status || err?.response?.status;
+    const apiMessage =
+      err?.error?.message ||
+      err?.response?.data?.error?.message ||
+      err?.message;
+    console.error('Thesis error:', status || '', apiMessage || err);
+    if (status === 401) {
+      res
+        .status(401)
+        .json({ error: 'Invalid ANTHROPIC_API_KEY. Double-check it in server/.env.' });
+    } else if (status === 429) {
+      res
+        .status(429)
+        .json({ error: 'Anthropic rate-limited this account. Wait a minute and try again.' });
+    } else if (status === 404 && /model/i.test(apiMessage || '')) {
+      res.status(404).json({
+        error: `Model not found: ${process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5'}. Set ANTHROPIC_MODEL to an available model.`,
+      });
+    } else if (apiMessage) {
+      res.status(status && status < 600 ? status : 500).json({ error: apiMessage });
+    } else {
+      next(err);
+    }
   }
 });
 

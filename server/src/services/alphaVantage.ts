@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { NormalizedBar } from './yahoo';
 
 const BASE = 'https://www.alphavantage.co/query';
 
@@ -90,6 +91,60 @@ export async function alphaVantageEarnings(ticker: string): Promise<AVEarnings |
       })),
     };
   } catch {
+    return null;
+  }
+}
+
+// Daily OHLCV history — used as a fallback when Twelve Data is rate-limited.
+// Free tier allows 25 calls/day so we cache results aggressively.
+const historyCache = new Map<string, { bars: NormalizedBar[] | null; expires: number }>();
+const HISTORY_TTL = 30 * 60_000;
+
+export async function alphaVantageHistory(ticker: string): Promise<NormalizedBar[] | null> {
+  const k = key();
+  if (!k) return null;
+  const cached = historyCache.get(ticker);
+  if (cached && cached.expires > Date.now()) return cached.bars;
+  try {
+    const { data } = await axios.get(BASE, {
+      params: {
+        function: 'TIME_SERIES_DAILY',
+        symbol: ticker,
+        outputsize: 'full',
+        apikey: k,
+      },
+      timeout: 15000,
+    });
+    const series = data?.['Time Series (Daily)'];
+    if (!series || typeof series !== 'object') {
+      if (data?.Note) {
+        console.warn(`  ✗ alphavantage:history ${ticker} rate-limited (daily 25-call cap)`);
+      } else if (data?.['Error Message']) {
+        console.warn(`  ✗ alphavantage:history ${ticker} ${data['Error Message']}`);
+      }
+      historyCache.set(ticker, { bars: null, expires: Date.now() + 10_000 });
+      return null;
+    }
+    const dates = Object.keys(series).sort();
+    const bars: NormalizedBar[] = dates.map((date) => {
+      const v = series[date];
+      const close = Number(v['4. close']);
+      return {
+        date,
+        open: Number(v['1. open']) || close,
+        high: Number(v['2. high']) || close,
+        low: Number(v['3. low']) || close,
+        close,
+        volume: Number(v['5. volume']) || 0,
+      };
+    });
+    historyCache.set(ticker, { bars, expires: Date.now() + HISTORY_TTL });
+    return bars;
+  } catch (err: any) {
+    console.warn(
+      `  ✗ alphavantage:history ${ticker} ${err?.response?.status || err?.code || 'ERR'}`
+    );
+    historyCache.set(ticker, { bars: null, expires: Date.now() + 10_000 });
     return null;
   }
 }

@@ -25,15 +25,29 @@ interface CacheEntry<T> {
 }
 const cache = new Map<string, CacheEntry<any>>();
 
+// Short TTL for empty/null results so a rate-limited call doesn't poison the
+// cache for the full `ttlMs` window — but long enough to prevent thundering
+// herd retries (we'd just get 429'd again).
+const EMPTY_TTL = 10_000;
+
 function memoize<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
   const now = Date.now();
   const hit = cache.get(key);
   if (hit && hit.expires > now) return hit.promise;
   const p = fn();
+  // Initial set: prevents concurrent callers from re-firing the request while
+  // we wait for it. Re-set with proper TTL once we know the outcome.
   cache.set(key, { promise: p, expires: now + ttlMs });
-  // If the function throws, drop the entry so it can be retried sooner.
-  p.catch(() => {
-    if (cache.get(key)?.promise === p) cache.delete(key);
+  p.then((value) => {
+    const isEmpty =
+      value == null || (Array.isArray(value) && value.length === 0);
+    cache.set(key, {
+      promise: p,
+      expires: Date.now() + (isEmpty ? EMPTY_TTL : ttlMs),
+    });
+  }).catch(() => {
+    // Errors get a short cache too so we don't hammer the upstream.
+    cache.set(key, { promise: p, expires: Date.now() + EMPTY_TTL });
   });
   return p;
 }

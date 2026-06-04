@@ -1,6 +1,6 @@
 import { fetchMassive } from './massive';
 import { EarningsEvent, finnhubEarnings, finnhubNews, finnhubProfile, finnhubQuote } from './finnhub';
-import { alphaVantageEarnings, alphaVantageOverview } from './alphaVantage';
+import { alphaVantageEarnings, alphaVantageHistory, alphaVantageOverview } from './alphaVantage';
 import {
   NormalizedBar,
   NormalizedNews,
@@ -140,6 +140,7 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     fhEarnings,
     avOverview,
     avEarnings,
+    avHistory,
     yQuote,
     yHistory,
     yNews,
@@ -156,6 +157,7 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     finnhubEarnings(ticker, 200, 7),
     alphaVantageOverview(ticker),
     alphaVantageEarnings(ticker),
+    alphaVantageHistory(ticker),
     yahooQuote(ticker),
     yahooHistory(ticker, 120),
     yahooNews(ticker, 6),
@@ -194,7 +196,8 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
   if (yProfile) providers.push('yahoo');
   if (tdProfile) providers.push('twelvedata');
 
-  // Price history (Massive → Yahoo → Twelve Data → Stooq)
+  // Price history fallback chain — first provider with data wins.
+  // Massive → Twelve Data → Yahoo → Alpha Vantage → Stooq
   let priceHistory: NormalizedBar[] | null = null;
   if (massive.priceHistory?.results?.length) {
     priceHistory = massive.priceHistory.results.map((r: any) => ({
@@ -206,11 +209,15 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
       volume: r.v,
     }));
     providers.push('massive');
-  } else if (yHistory && yHistory.length) {
-    priceHistory = yHistory;
   } else if (tdHistory && tdHistory.length) {
     priceHistory = tdHistory;
     providers.push('twelvedata');
+  } else if (yHistory && yHistory.length) {
+    priceHistory = yHistory;
+    providers.push('yahoo');
+  } else if (avHistory && avHistory.length) {
+    priceHistory = avHistory;
+    providers.push('alphavantage');
   } else if (sqHistory && sqHistory.length) {
     priceHistory = sqHistory;
     providers.push('stooq');
