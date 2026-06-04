@@ -191,20 +191,45 @@ router.post('/:ticker/thesis', requireAuth, async (req, res, next) => {
     const thesis = await generateThesis(report);
     res.json({ ticker, ...thesis });
   } catch (err: any) {
-    const status = err?.status || err?.response?.status;
-    const apiMessage =
+    const status: number | undefined = err?.status || err?.response?.status;
+
+    // Anthropic SDK errors carry the parsed body on .error.error.message, OR
+    // the raw JSON in .message. Try several extractors then fall back to a
+    // generic string.
+    let apiMessage: string | undefined =
+      err?.error?.error?.message ||
       err?.error?.message ||
-      err?.response?.data?.error?.message ||
-      err?.message;
+      err?.response?.data?.error?.message;
+
+    if (!apiMessage && typeof err?.message === 'string') {
+      // SDK sometimes throws with message like '400 {"type":"error",...}'
+      const m = err.message.match(/\{[\s\S]+\}$/);
+      if (m) {
+        try {
+          const parsed = JSON.parse(m[0]);
+          apiMessage = parsed?.error?.message || parsed?.message;
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!apiMessage) apiMessage = err.message;
+    }
+
     console.error('Thesis error:', status || '', apiMessage || err);
+
     if (status === 401) {
-      res
-        .status(401)
-        .json({ error: 'Invalid ANTHROPIC_API_KEY. Double-check it in server/.env.' });
+      res.status(401).json({
+        error: 'Invalid ANTHROPIC_API_KEY. Double-check it in server/.env.',
+      });
     } else if (status === 429) {
-      res
-        .status(429)
-        .json({ error: 'Anthropic rate-limited this account. Wait a minute and try again.' });
+      res.status(429).json({
+        error: 'Anthropic rate-limited this account. Wait a minute and try again.',
+      });
+    } else if (/credit balance is too low|insufficient/i.test(apiMessage || '')) {
+      res.status(402).json({
+        error:
+          'Your Anthropic account is out of credits. Add credits at https://console.anthropic.com/settings/billing — as little as $5 is enough for hundreds of theses.',
+      });
     } else if (status === 404 && /model/i.test(apiMessage || '')) {
       res.status(404).json({
         error: `Model not found: ${process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5'}. Set ANTHROPIC_MODEL to an available model.`,
