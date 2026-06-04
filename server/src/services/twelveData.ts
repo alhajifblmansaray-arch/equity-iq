@@ -17,7 +17,34 @@ function num(v: any): number | undefined {
   return Number.isFinite(n) ? n : undefined;
 }
 
-export async function twelveDataQuote(ticker: string): Promise<NormalizedQuote | null> {
+// In-flight + TTL cache. Both successes and nulls are cached so a 429 backs
+// off for the same TTL window instead of hammering the upstream API.
+interface CacheEntry<T> {
+  promise: Promise<T>;
+  expires: number;
+}
+const cache = new Map<string, CacheEntry<any>>();
+
+function memoize<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
+  const now = Date.now();
+  const hit = cache.get(key);
+  if (hit && hit.expires > now) return hit.promise;
+  const p = fn();
+  cache.set(key, { promise: p, expires: now + ttlMs });
+  // If the function throws, drop the entry so it can be retried sooner.
+  p.catch(() => {
+    if (cache.get(key)?.promise === p) cache.delete(key);
+  });
+  return p;
+}
+
+// TTL knobs (ms). Tune here.
+const TTL_QUOTE = 15_000;
+const TTL_HISTORY = 5 * 60_000;
+const TTL_INTRADAY = 30_000;
+const TTL_PROFILE = 30 * 60_000;
+
+async function _twelveDataQuote(ticker: string): Promise<NormalizedQuote | null> {
   const k = key();
   if (!k) return null;
   try {
@@ -49,7 +76,7 @@ export async function twelveDataQuote(ticker: string): Promise<NormalizedQuote |
   }
 }
 
-export async function twelveDataHistory(ticker: string, outputsize = 1300): Promise<NormalizedBar[] | null> {
+async function _twelveDataHistory(ticker: string, outputsize: number): Promise<NormalizedBar[] | null> {
   const k = key();
   if (!k) return null;
   try {
@@ -86,10 +113,10 @@ export async function twelveDataHistory(ticker: string, outputsize = 1300): Prom
 
 export type IntradayInterval = '1min' | '5min' | '15min' | '30min' | '1h';
 
-export async function twelveDataIntraday(
+async function _twelveDataIntraday(
   ticker: string,
-  interval: IntradayInterval = '5min',
-  outputsize = 200
+  interval: IntradayInterval,
+  outputsize: number
 ): Promise<NormalizedBar[] | null> {
   const k = key();
   if (!k) return null;
@@ -137,7 +164,7 @@ export interface TDProfile {
   employees?: number;
 }
 
-export async function twelveDataProfile(ticker: string): Promise<TDProfile | null> {
+async function _twelveDataProfile(ticker: string): Promise<TDProfile | null> {
   const k = key();
   if (!k) return null;
   try {
@@ -159,4 +186,31 @@ export async function twelveDataProfile(ticker: string): Promise<TDProfile | nul
   } catch {
     return null;
   }
+}
+
+// Public, cached wrappers
+export function twelveDataQuote(ticker: string): Promise<NormalizedQuote | null> {
+  const t = ticker.toUpperCase();
+  return memoize(`td:quote:${t}`, TTL_QUOTE, () => _twelveDataQuote(t));
+}
+
+export function twelveDataHistory(ticker: string, outputsize = 1300): Promise<NormalizedBar[] | null> {
+  const t = ticker.toUpperCase();
+  return memoize(`td:history:${t}:${outputsize}`, TTL_HISTORY, () => _twelveDataHistory(t, outputsize));
+}
+
+export function twelveDataIntraday(
+  ticker: string,
+  interval: IntradayInterval = '5min',
+  outputsize = 200
+): Promise<NormalizedBar[] | null> {
+  const t = ticker.toUpperCase();
+  return memoize(`td:intraday:${t}:${interval}:${outputsize}`, TTL_INTRADAY, () =>
+    _twelveDataIntraday(t, interval, outputsize)
+  );
+}
+
+export function twelveDataProfile(ticker: string): Promise<TDProfile | null> {
+  const t = ticker.toUpperCase();
+  return memoize(`td:profile:${t}`, TTL_PROFILE, () => _twelveDataProfile(t));
 }
