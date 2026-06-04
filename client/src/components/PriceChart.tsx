@@ -3,7 +3,15 @@ import { Area, AreaChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YA
 import type { ResearchReport } from '../types';
 import { fmtDate, fmtPct, fmtPrice } from '../lib/helpers';
 
-type Range = '1M' | '3M';
+type Range = '1M' | '3M' | '6M' | '1Y' | '5Y';
+
+const RANGE_BARS: Record<Range, number> = {
+  '1M': 22,
+  '3M': 66,
+  '6M': 130,
+  '1Y': 252,
+  '5Y': 1260,
+};
 
 interface Props {
   data: ResearchReport;
@@ -13,10 +21,14 @@ export default function PriceChart({ data }: Props) {
   const [range, setRange] = useState<Range>('3M');
   const bars = data.priceHistory || [];
 
+  const availableRanges = useMemo<Range[]>(() => {
+    const all: Range[] = ['1M', '3M', '6M', '1Y', '5Y'];
+    return all.filter((r) => bars.length >= Math.min(RANGE_BARS[r], 20));
+  }, [bars.length]);
+
   const slice = useMemo(() => {
     if (!bars.length) return [];
-    const n = range === '1M' ? 22 : 66;
-    return bars.slice(-n);
+    return bars.slice(-RANGE_BARS[range]);
   }, [bars, range]);
 
   if (!slice.length) {
@@ -40,10 +52,18 @@ export default function PriceChart({ data }: Props) {
 
   const sma50 = data.technicals.sma50;
   const sma200 = data.technicals.sma200;
+  const showSMA = range === '3M' || range === '6M' || range === '1Y';
+
+  // Year-only labels for 1Y/5Y; otherwise month + day
+  const longRange = range === '1Y' || range === '5Y';
+  const tickFmt = (d: string) =>
+    longRange
+      ? new Date(d).toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+      : new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   return (
     <div className="card animate-fadeUp animate-delay-1">
-      <div className="flex items-start justify-between gap-4 mb-4">
+      <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
         <div>
           <div className="eyebrow mb-1">Price action</div>
           <h3 className="section-title">{range} chart</h3>
@@ -52,7 +72,7 @@ export default function PriceChart({ data }: Props) {
           </div>
         </div>
         <div className="inline-flex items-center bg-cream-tint rounded-full p-1">
-          {(['1M', '3M'] as const).map((r) => (
+          {availableRanges.map((r) => (
             <button
               key={r}
               onClick={() => setRange(r)}
@@ -79,7 +99,8 @@ export default function PriceChart({ data }: Props) {
               dataKey="date"
               tick={{ fontSize: 11, fill: 'var(--ink-tertiary)' }}
               interval="preserveStartEnd"
-              tickFormatter={(d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              tickFormatter={tickFmt}
+              minTickGap={40}
             />
             <YAxis
               orientation="right"
@@ -100,19 +121,25 @@ export default function PriceChart({ data }: Props) {
               labelFormatter={(d) => fmtDate(String(d))}
               formatter={(v: any) => [`$${fmtPrice(Number(v))}`, 'Close']}
             />
-            {range === '3M' && sma50 != null && (
-              <ReferenceLine y={sma50} stroke="var(--dusty)" strokeDasharray="4 4" strokeWidth={1} label={{ value: 'SMA50', position: 'right', fontSize: 10, fill: 'var(--dusty)' }} />
+            {showSMA && sma50 != null && (
+              <ReferenceLine
+                y={sma50}
+                stroke="var(--dusty)"
+                strokeDasharray="4 4"
+                strokeWidth={1}
+                label={{ value: 'SMA50', position: 'right', fontSize: 10, fill: 'var(--dusty)' }}
+              />
             )}
-            {range === '3M' && sma200 != null && (
-              <ReferenceLine y={sma200} stroke="var(--amber)" strokeDasharray="4 4" strokeWidth={1} label={{ value: 'SMA200', position: 'right', fontSize: 10, fill: 'var(--amber)' }} />
+            {showSMA && sma200 != null && (
+              <ReferenceLine
+                y={sma200}
+                stroke="var(--amber)"
+                strokeDasharray="4 4"
+                strokeWidth={1}
+                label={{ value: 'SMA200', position: 'right', fontSize: 10, fill: 'var(--amber)' }}
+              />
             )}
-            <Area
-              type="monotone"
-              dataKey="close"
-              stroke={color}
-              strokeWidth={2}
-              fill="url(#priceGrad)"
-            />
+            <Area type="monotone" dataKey="close" stroke={color} strokeWidth={2} fill="url(#priceGrad)" />
           </AreaChart>
         </ResponsiveContainer>
       </div>

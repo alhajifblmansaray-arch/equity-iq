@@ -49,13 +49,13 @@ export async function twelveDataQuote(ticker: string): Promise<NormalizedQuote |
   }
 }
 
-export async function twelveDataHistory(ticker: string, outputsize = 200): Promise<NormalizedBar[] | null> {
+export async function twelveDataHistory(ticker: string, outputsize = 1300): Promise<NormalizedBar[] | null> {
   const k = key();
   if (!k) return null;
   try {
     const { data } = await axios.get(`${BASE}/time_series`, {
       params: { symbol: ticker, interval: '1day', outputsize, apikey: k },
-      timeout: 10000,
+      timeout: 12000,
     });
     if (!data || data.status === 'error' || !Array.isArray(data.values)) {
       if (data?.status === 'error') console.warn(`  ✗ twelvedata:history ${ticker} ${data.message || 'error'}`);
@@ -80,6 +80,48 @@ export async function twelveDataHistory(ticker: string, outputsize = 200): Promi
     return bars.length ? bars : null;
   } catch (err: any) {
     console.warn(`  ✗ twelvedata:history ${ticker} ${err?.response?.status || err?.code || 'ERR'}`);
+    return null;
+  }
+}
+
+export type IntradayInterval = '1min' | '5min' | '15min' | '30min' | '1h';
+
+export async function twelveDataIntraday(
+  ticker: string,
+  interval: IntradayInterval = '5min',
+  outputsize = 200
+): Promise<NormalizedBar[] | null> {
+  const k = key();
+  if (!k) return null;
+  try {
+    const { data } = await axios.get(`${BASE}/time_series`, {
+      params: { symbol: ticker, interval, outputsize, apikey: k },
+      timeout: 10000,
+    });
+    if (!data || data.status === 'error' || !Array.isArray(data.values)) {
+      if (data?.status === 'error') {
+        console.warn(`  ✗ twelvedata:intraday ${ticker} ${data.message || 'error'}`);
+      }
+      return null;
+    }
+    const bars: NormalizedBar[] = data.values
+      .map((v: any): NormalizedBar | null => {
+        const close = num(v.close);
+        if (close == null) return null;
+        return {
+          date: v.datetime,
+          open: num(v.open) ?? close,
+          high: num(v.high) ?? close,
+          low: num(v.low) ?? close,
+          close,
+          volume: num(v.volume) ?? 0,
+        };
+      })
+      .filter((b: NormalizedBar | null): b is NormalizedBar => b !== null)
+      .reverse();
+    return bars.length ? bars : null;
+  } catch (err: any) {
+    console.warn(`  ✗ twelvedata:intraday ${ticker} ${err?.response?.status || err?.code || 'ERR'}`);
     return null;
   }
 }

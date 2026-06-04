@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { TrendingDown, TrendingUp } from 'lucide-react';
+import { Activity, TrendingDown, TrendingUp } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import type { ResearchReport } from '../types';
 import { fmtCompact, fmtDate, fmtPct, fmtPrice } from '../lib/helpers';
+import WatchlistButton from './WatchlistButton';
 
 interface Props {
   data: ResearchReport;
@@ -53,11 +55,24 @@ export default function SnapshotCard({ data }: Props) {
             </div>
           )}
         </div>
-        {derived && (
-          <span className="pill pill-mute" title={`Source: ${s.source}`}>
-            As of {fmtDate(s.asOf)}
-          </span>
-        )}
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-2">
+            <WatchlistButton ticker={data.ticker} />
+            <Link
+              to={`/live?ticker=${data.ticker}`}
+              className="inline-flex items-center gap-1.5 rounded-full bg-cream-tint px-3 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink hover:bg-white transition"
+              title="Open live chart"
+            >
+              <Activity size={13} strokeWidth={1.8} />
+              Live
+            </Link>
+          </div>
+          {derived && (
+            <span className="pill pill-mute" title={`Source: ${s.source}`}>
+              As of {fmtDate(s.asOf)}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="mt-6 flex items-baseline gap-2">

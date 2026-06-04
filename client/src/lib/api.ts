@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { ResearchReport, User } from '../types';
+import type { NormalizedBar, NormalizedQuote, ResearchReport, User } from '../types';
 
 export const api = axios.create({
   baseURL: '/api',
@@ -20,9 +20,28 @@ export const auth = {
   logout: () => api.post('/auth/logout').then(() => undefined),
 };
 
+export type IntradayInterval = '1min' | '5min' | '15min' | '30min' | '1h';
+
+export interface IntradayResponse {
+  ticker: string;
+  interval: IntradayInterval;
+  bars: NormalizedBar[];
+  quote: NormalizedQuote | null;
+}
+
 export const research = {
   get: (ticker: string) =>
     api.get<ResearchReport>(`/research/${encodeURIComponent(ticker.toUpperCase())}`).then((r) => r.data),
+  quote: (ticker: string) =>
+    api
+      .get<{ ticker: string; quote: NormalizedQuote }>(`/research/${encodeURIComponent(ticker.toUpperCase())}/quote`)
+      .then((r) => r.data),
+  intraday: (ticker: string, interval: IntradayInterval = '5min', outputsize = 200) =>
+    api
+      .get<IntradayResponse>(`/research/${encodeURIComponent(ticker.toUpperCase())}/intraday`, {
+        params: { interval, outputsize },
+      })
+      .then((r) => r.data),
 };
 
 export const watchlist = {
