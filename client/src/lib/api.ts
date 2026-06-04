@@ -36,6 +36,13 @@ export const research = {
     api
       .get<{ ticker: string; quote: NormalizedQuote }>(`/research/${encodeURIComponent(ticker.toUpperCase())}/quote`)
       .then((r) => r.data),
+  spark: (ticker: string, days = 10) =>
+    api
+      .get<{ ticker: string; closes: number[] }>(
+        `/research/${encodeURIComponent(ticker.toUpperCase())}/spark`,
+        { params: { days } }
+      )
+      .then((r) => r.data),
   intraday: (ticker: string, interval: IntradayInterval = '5min', outputsize = 200) =>
     api
       .get<IntradayResponse>(`/research/${encodeURIComponent(ticker.toUpperCase())}/intraday`, {

@@ -20,17 +20,17 @@
 
 :root[data-theme='dark'] {
   --cream: #14110D;
-  --cream-tint: #1E1B16;
-  --surface: #1A1714;
-  --hairline: #2C2823;
-  --ink: #F0EBE3;
-  --ink-secondary: #A39E96;
-  --ink-tertiary: #6E6963;
-  --forest: #5FAA82;
-  --brick: #E07C70;
-  --amber: #D9A65A;
-  --dusty: #7AA3C2;
-  --skel-mid: #221E18;
+  --cream-tint: #221E18;
+  --surface: #1B1814;
+  --hairline: #322D26;
+  --ink: #F2EEE6;
+  --ink-secondary: #B4AFA6;
+  --ink-tertiary: #7C7770;
+  --forest: #6FB89A;
+  --brick: #E88B7E;
+  --amber: #DDAE63;
+  --dusty: #87ADCC;
+  --skel-mid: #2E2920;
 }
 
 * {
@@ -95,14 +95,37 @@ body {
 }
 
 /* Bg utilities resolve to CSS vars so themes swap them */
-.bg-cream { background-color: var(--cream); }
-.bg-cream-tint { background-color: var(--cream-tint); }
+.bg-cream { background-color: var(--cream) !important; }
+.bg-cream-tint { background-color: var(--cream-tint) !important; }
 .bg-white { background-color: var(--surface) !important; }
 .text-ink { color: var(--ink); }
 .text-ink-secondary { color: var(--ink-secondary); }
 .text-ink-tertiary { color: var(--ink-tertiary); }
 .text-cream { color: var(--cream); }
 .border-hairline { border-color: var(--hairline) !important; }
+.bg-ink { background-color: var(--ink) !important; }
+.text-forest { color: var(--forest); }
+.bg-forest { background-color: var(--forest) !important; }
+
+/* Numeric inputs: hide browser spinners — used by What-if & alert price */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Recharts tooltip + axis recolor for both themes */
+.recharts-default-tooltip {
+  background-color: var(--surface) !important;
+  border: none !important;
+  color: var(--ink) !important;
+}
+.recharts-tooltip-item-list { color: var(--ink) !important; }
+.recharts-tooltip-label { color: var(--ink-secondary) !important; }
 
 @layer utilities {
   .animate-delay-1 { animation-delay: 60ms; }

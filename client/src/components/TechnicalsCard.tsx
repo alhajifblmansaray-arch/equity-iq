@@ -17,12 +17,12 @@ export default function TechnicalsCard({ data }: Props) {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6 items-center">
-        {/* RSI gauge */}
+      <div className="grid md:grid-cols-2 gap-8 items-start">
+        {/* RSI gauge — left column, matches VerdictCard layout */}
         <RSIGauge rsi={rsi} />
 
         {/* Right column */}
-        <div className="space-y-5">
+        <div className="space-y-6">
           <MACD macd={macd} />
           <MovingAverages sma50={sma50} sma200={sma200} price={data.snapshot?.price} />
         </div>
@@ -54,23 +54,39 @@ function RSIGauge({ rsi }: { rsi?: number }) {
   const trackPath = `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`;
 
   return (
-    <div className="flex flex-col items-center">
-      <div className="eyebrow mb-2">Relative Strength (14d)</div>
-      <svg width="180" height="110" viewBox="0 0 180 110">
-        <path d={trackPath} stroke="var(--hairline)" strokeWidth="10" fill="none" strokeLinecap="round" />
-        {rsi != null && (
-          <>
-            <path d={arcPath} stroke={color} strokeWidth="10" fill="none" strokeLinecap="round" />
-            <circle cx={nx} cy={ny} r="6" fill={color} />
-            <circle cx={nx} cy={ny} r="3" fill="white" />
-          </>
-        )}
-        <text x="90" y="86" textAnchor="middle" fontFamily="DM Serif Display" fontSize="34" fill="var(--ink)">
-          {rsi != null ? rsi.toFixed(0) : '—'}
-        </text>
-      </svg>
-      <div className="mt-1 flex items-center gap-2">
-        <span className={`pill ${pillClass}`}>{label}</span>
+    <div>
+      <div className="eyebrow mb-3">Relative Strength (14d)</div>
+      <div className="flex items-center gap-5">
+        <svg width="180" height="110" viewBox="0 0 180 110" className="flex-shrink-0">
+          <path d={trackPath} stroke="var(--hairline)" strokeWidth="10" fill="none" strokeLinecap="round" />
+          {rsi != null && (
+            <>
+              <path d={arcPath} stroke={color} strokeWidth="10" fill="none" strokeLinecap="round" />
+              <circle cx={nx} cy={ny} r="6" fill={color} />
+              <circle cx={nx} cy={ny} r="3" fill="var(--surface)" />
+            </>
+          )}
+          <text
+            x="90"
+            y="86"
+            textAnchor="middle"
+            fontFamily="DM Serif Display"
+            fontSize="34"
+            fill="var(--ink)"
+          >
+            {rsi != null ? rsi.toFixed(0) : '—'}
+          </text>
+        </svg>
+        <div className="space-y-2">
+          <span className={`pill ${pillClass} text-[11px]`}>{label}</span>
+          <p className="text-[12px] text-ink-tertiary leading-relaxed max-w-[160px]">
+            {clamped <= 30
+              ? 'Selling may be exhausted.'
+              : clamped >= 70
+              ? 'Buying may be exhausted.'
+              : 'Momentum is mid-range.'}
+          </p>
+        </div>
       </div>
     </div>
   );

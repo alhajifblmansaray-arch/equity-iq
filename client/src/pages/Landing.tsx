@@ -12,7 +12,10 @@ export default function Landing() {
   return (
     <div className="min-h-screen">
       {/* Top nav */}
-      <header className="sticky top-0 z-30 backdrop-blur" style={{ background: 'rgba(245,241,235,0.78)' }}>
+      <header
+        className="sticky top-0 z-30 backdrop-blur"
+        style={{ background: 'color-mix(in srgb, var(--cream) 78%, transparent)' }}
+      >
         <div className="max-w-7xl mx-auto px-6 md:px-10 h-16 flex items-center justify-between">
           <Logo size="md" />
           <nav className="flex items-center gap-2">

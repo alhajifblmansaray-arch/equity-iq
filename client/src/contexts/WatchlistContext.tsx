@@ -48,19 +48,20 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   // Fetch quotes + sparklines for any ticker we don't have data for yet.
+  // Sparklines use the daily-close endpoint so they work even for thinly
+  // traded tickers where intraday data isn't available.
   useEffect(() => {
     let alive = true;
     tickers.forEach((t) => {
       if (snaps[t]) return;
       Promise.all([
         research.quote(t).catch(() => null),
-        research.intraday(t, '1h', 60).catch(() => null),
-      ]).then(([q, intraday]) => {
+        research.spark(t, 10).catch(() => null),
+      ]).then(([q, spark]) => {
         if (!alive) return;
-        const closes = intraday?.bars?.map((b) => b.close) || [];
         setSnaps((prev) => ({
           ...prev,
-          [t]: { quote: q?.quote || null, spark: closes },
+          [t]: { quote: q?.quote || null, spark: spark?.closes || [] },
         }));
       });
     });

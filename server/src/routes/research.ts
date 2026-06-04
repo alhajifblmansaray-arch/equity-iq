@@ -2,7 +2,9 @@ import { Router } from 'express';
 import { buildResearchReport } from '../services/research';
 import { twelveDataIntraday, twelveDataQuote, IntradayInterval } from '../services/twelveData';
 import { finnhubMarketNews, finnhubNews, finnhubQuote } from '../services/finnhub';
-import { yahooNews, yahooQuote } from '../services/yahoo';
+import { yahooHistory, yahooNews, yahooQuote } from '../services/yahoo';
+import { twelveDataHistory } from '../services/twelveData';
+import { stooqHistory } from '../services/stooq';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
@@ -26,6 +28,31 @@ router.get('/:ticker', requireAuth, async (req, res, next) => {
       return;
     }
     res.json(report);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Sparkline endpoint — last N daily closes. Cheap (shares Twelve Data history
+// cache) and works for any US ticker even when intraday data isn't available.
+router.get('/:ticker/spark', requireAuth, async (req, res, next) => {
+  const ticker = String(req.params.ticker || '').toUpperCase().trim();
+  if (!validTicker(ticker)) {
+    res.status(400).json({ error: 'Invalid ticker.' });
+    return;
+  }
+  const days = Math.min(60, Math.max(3, Number(req.query.days) || 10));
+  try {
+    let bars =
+      (await twelveDataHistory(ticker, Math.max(30, days * 2))) ||
+      (await yahooHistory(ticker, days * 2)) ||
+      (await stooqHistory(ticker, days * 2));
+    if (!bars || !bars.length) {
+      res.status(404).json({ error: `No history for ${ticker}.` });
+      return;
+    }
+    const closes = bars.slice(-days).map((b) => b.close);
+    res.json({ ticker, closes });
   } catch (err) {
     next(err);
   }
