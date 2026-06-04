@@ -126,3 +126,80 @@ export async function finnhubProfile(ticker: string): Promise<CompanyProfile | n
     return null;
   }
 }
+
+export interface EarningsEvent {
+  date: string;       // YYYY-MM-DD
+  symbol: string;
+  estimate?: number;
+  actual?: number;
+  hour?: 'bmo' | 'amc' | 'dmh' | string;
+  quarter?: number;
+  year?: number;
+  revenueEstimate?: number;
+  revenueActual?: number;
+}
+
+function fmtDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+export async function finnhubEarnings(ticker: string, daysAhead = 365, daysBack = 30): Promise<EarningsEvent[] | null> {
+  const k = key();
+  if (!k) return null;
+  try {
+    const from = new Date();
+    from.setDate(from.getDate() - daysBack);
+    const to = new Date();
+    to.setDate(to.getDate() + daysAhead);
+    const { data } = await axios.get(`${BASE}/calendar/earnings`, {
+      params: { symbol: ticker, from: fmtDate(from), to: fmtDate(to), token: k },
+      timeout: 8000,
+    });
+    const arr = data?.earningsCalendar;
+    if (!Array.isArray(arr)) return null;
+    return arr.map((e: any): EarningsEvent => ({
+      date: e.date,
+      symbol: e.symbol,
+      estimate: e.epsEstimate ?? undefined,
+      actual: e.epsActual ?? undefined,
+      hour: e.hour,
+      quarter: e.quarter,
+      year: e.year,
+      revenueEstimate: e.revenueEstimate ?? undefined,
+      revenueActual: e.revenueActual ?? undefined,
+    }));
+  } catch (err: any) {
+    console.warn(`  ✗ finnhub:earnings ${ticker} ${err?.response?.status || err?.code || 'ERR'}`);
+    return null;
+  }
+}
+
+export async function finnhubMarketEarnings(daysAhead = 14): Promise<EarningsEvent[] | null> {
+  const k = key();
+  if (!k) return null;
+  try {
+    const from = new Date();
+    const to = new Date();
+    to.setDate(to.getDate() + daysAhead);
+    const { data } = await axios.get(`${BASE}/calendar/earnings`, {
+      params: { from: fmtDate(from), to: fmtDate(to), token: k },
+      timeout: 9000,
+    });
+    const arr = data?.earningsCalendar;
+    if (!Array.isArray(arr)) return null;
+    return arr.map((e: any): EarningsEvent => ({
+      date: e.date,
+      symbol: e.symbol,
+      estimate: e.epsEstimate ?? undefined,
+      actual: e.epsActual ?? undefined,
+      hour: e.hour,
+      quarter: e.quarter,
+      year: e.year,
+      revenueEstimate: e.revenueEstimate ?? undefined,
+      revenueActual: e.revenueActual ?? undefined,
+    }));
+  } catch (err: any) {
+    console.warn(`  ✗ finnhub:market-earnings ${err?.response?.status || err?.code || 'ERR'}`);
+    return null;
+  }
+}

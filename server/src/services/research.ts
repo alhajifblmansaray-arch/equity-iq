@@ -1,5 +1,5 @@
 import { fetchMassive } from './massive';
-import { finnhubNews, finnhubProfile, finnhubQuote } from './finnhub';
+import { EarningsEvent, finnhubEarnings, finnhubNews, finnhubProfile, finnhubQuote } from './finnhub';
 import { alphaVantageEarnings, alphaVantageOverview } from './alphaVantage';
 import {
   NormalizedBar,
@@ -119,6 +119,7 @@ export interface ResearchReport {
   } | null;
   shortInterest: { shortPercent?: number; sharesShort?: number; daysToCover?: number; reportedAt?: string } | null;
   news: NormalizedNews[];
+  nextEarnings: { date: string; estimate?: number; hour?: string } | null;
 }
 
 function safeNumber(v: any): number | undefined {
@@ -136,6 +137,7 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     fhQuote,
     fhNews,
     fhProfile,
+    fhEarnings,
     avOverview,
     avEarnings,
     yQuote,
@@ -151,6 +153,7 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     finnhubQuote(ticker),
     finnhubNews(ticker, 6),
     finnhubProfile(ticker),
+    finnhubEarnings(ticker, 200, 7),
     alphaVantageOverview(ticker),
     alphaVantageEarnings(ticker),
     yahooQuote(ticker),
@@ -335,6 +338,18 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     news = yNews;
   }
 
+  // Next earnings (Finnhub)
+  let nextEarnings: ResearchReport['nextEarnings'] = null;
+  if (fhEarnings && fhEarnings.length) {
+    const now = new Date().toISOString().slice(0, 10);
+    const future = fhEarnings
+      .filter((e: EarningsEvent) => e.date >= now)
+      .sort((a: EarningsEvent, b: EarningsEvent) => a.date.localeCompare(b.date));
+    if (future[0]) {
+      nextEarnings = { date: future[0].date, estimate: future[0].estimate, hour: future[0].hour };
+    }
+  }
+
   const sections = {
     profile: !!profile,
     snapshot: !!snapshot,
@@ -344,6 +359,7 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     earnings: !!earnings,
     shortInterest: !!shortInterest,
     news: news.length > 0,
+    nextEarnings: !!nextEarnings,
   };
 
   console.log(`  sections:`, sections);
@@ -360,5 +376,6 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     earnings,
     shortInterest,
     news,
+    nextEarnings,
   };
 }

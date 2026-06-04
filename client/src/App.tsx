@@ -9,6 +9,9 @@ import Dashboard from './pages/Dashboard';
 import Watchlist from './pages/Watchlist';
 import Live from './pages/Live';
 import News from './pages/News';
+import Compare from './pages/Compare';
+import Calendar from './pages/Calendar';
+import Alerts from './pages/Alerts';
 
 function FullScreenLoader() {
   return (
@@ -21,9 +24,6 @@ function FullScreenLoader() {
   );
 }
 
-// Wraps every authenticated page in a single WatchlistProvider + Layout
-// (left sidebar + content area). All routes inside this <Route> render
-// inside <Outlet /> in Layout.
 function AuthenticatedShell() {
   const { user, loading } = useAuth();
   if (loading) return <FullScreenLoader />;
@@ -53,8 +53,11 @@ export default function App() {
       <Route element={<AuthenticatedShell />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/watchlist" element={<Watchlist />} />
+        <Route path="/compare" element={<Compare />} />
         <Route path="/live" element={<Live />} />
         <Route path="/news" element={<News />} />
+        <Route path="/calendar" element={<Calendar />} />
+        <Route path="/alerts" element={<Alerts />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

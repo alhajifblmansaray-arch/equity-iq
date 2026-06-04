@@ -76,6 +76,35 @@ router.get('/:ticker/intraday', requireAuth, async (req, res, next) => {
   }
 });
 
+// AI thesis (Anthropic Claude). Returns one ~3-paragraph synthesis.
+import { generateThesis, isAnthropicEnabled } from '../services/anthropic';
+
+router.post('/:ticker/thesis', requireAuth, async (req, res, next) => {
+  const ticker = String(req.params.ticker || '').toUpperCase().trim();
+  if (!validTicker(ticker)) {
+    res.status(400).json({ error: 'Invalid ticker symbol.' });
+    return;
+  }
+  if (!isAnthropicEnabled()) {
+    res.status(503).json({
+      error: 'AI thesis is unavailable. Set ANTHROPIC_API_KEY in server/.env to enable.',
+    });
+    return;
+  }
+  try {
+    const report = await buildResearchReport(ticker);
+    if (!report.snapshot && !report.priceHistory) {
+      res.status(404).json({ error: `No data found for ${ticker}.` });
+      return;
+    }
+    const thesis = await generateThesis(report);
+    res.json({ ticker, ...thesis });
+  } catch (err: any) {
+    console.error('Thesis error:', err?.message || err);
+    next(err);
+  }
+});
+
 // Expanded news feed for a specific ticker — used by the dedicated News page.
 router.get('/:ticker/news', requireAuth, async (req, res, next) => {
   const ticker = String(req.params.ticker || '').toUpperCase().trim();

@@ -1,14 +1,22 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
-import { watchlist as wlApi } from '../lib/api';
+import { research, watchlist as wlApi } from '../lib/api';
+import type { NormalizedQuote } from '../types';
 import { useAuth } from './AuthContext';
+
+export interface TickerSnap {
+  quote: NormalizedQuote | null;
+  spark: number[]; // ~7 day closes
+}
 
 interface WatchlistContextValue {
   tickers: string[];
+  snaps: Record<string, TickerSnap>;
   loading: boolean;
   has: (ticker: string) => boolean;
   add: (ticker: string) => Promise<void>;
   remove: (ticker: string) => Promise<void>;
   toggle: (ticker: string) => Promise<void>;
+  refresh: () => Promise<void>;
 }
 
 const Ctx = createContext<WatchlistContextValue | undefined>(undefined);
@@ -16,11 +24,13 @@ const Ctx = createContext<WatchlistContextValue | undefined>(undefined);
 export function WatchlistProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [tickers, setTickers] = useState<string[]>([]);
+  const [snaps, setSnaps] = useState<Record<string, TickerSnap>>({});
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!user) {
       setTickers([]);
+      setSnaps({});
       return;
     }
     let alive = true;
@@ -37,6 +47,29 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
     };
   }, [user]);
 
+  // Fetch quotes + sparklines for any ticker we don't have data for yet.
+  useEffect(() => {
+    let alive = true;
+    tickers.forEach((t) => {
+      if (snaps[t]) return;
+      Promise.all([
+        research.quote(t).catch(() => null),
+        research.intraday(t, '1h', 60).catch(() => null),
+      ]).then(([q, intraday]) => {
+        if (!alive) return;
+        const closes = intraday?.bars?.map((b) => b.close) || [];
+        setSnaps((prev) => ({
+          ...prev,
+          [t]: { quote: q?.quote || null, spark: closes },
+        }));
+      });
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tickers]);
+
   const has = useCallback((t: string) => tickers.includes(t.toUpperCase()), [tickers]);
 
   const add = useCallback(async (t: string) => {
@@ -47,6 +80,10 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
   const remove = useCallback(async (t: string) => {
     const list = await wlApi.remove(t);
     setTickers(list);
+    setSnaps((prev) => {
+      const { [t.toUpperCase()]: _, ...rest } = prev;
+      return rest;
+    });
   }, []);
 
   const toggle = useCallback(
@@ -57,9 +94,15 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
     [has, add, remove]
   );
 
+  const refresh = useCallback(async () => {
+    const list = await wlApi.get();
+    setTickers(list);
+    setSnaps({});
+  }, []);
+
   const value = useMemo(
-    () => ({ tickers, loading, has, add, remove, toggle }),
-    [tickers, loading, has, add, remove, toggle]
+    () => ({ tickers, snaps, loading, has, add, remove, toggle, refresh }),
+    [tickers, snaps, loading, has, add, remove, toggle, refresh]
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

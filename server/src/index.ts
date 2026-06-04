@@ -11,6 +11,9 @@ import authRoutes from './routes/auth';
 import researchRoutes from './routes/research';
 import userRoutes from './routes/user';
 import newsRoutes from './routes/news';
+import calendarRoutes from './routes/calendar';
+import alertRoutes from './routes/alerts';
+import { startAlertChecker } from './services/alertChecker';
 
 const PORT = Number(process.env.PORT) || 3001;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
@@ -59,6 +62,8 @@ async function main(): Promise<void> {
   app.use('/api/research', researchRoutes);
   app.use('/api/user', userRoutes);
   app.use('/api/news', newsRoutes);
+  app.use('/api/calendar', calendarRoutes);
+  app.use('/api/alerts', alertRoutes);
 
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Unhandled error:', err);
@@ -68,6 +73,7 @@ async function main(): Promise<void> {
   app.listen(PORT, () => {
     console.log(`✓ EquityIQ API listening on http://localhost:${PORT}`);
     console.log(`  → client origin: ${CLIENT_ORIGIN}`);
+    startAlertChecker();
   });
 }
 

@@ -102,4 +102,27 @@ export interface ResearchReport {
     reportedAt?: string;
   } | null;
   news: NormalizedNews[];
+  nextEarnings: { date: string; estimate?: number; hour?: string } | null;
+}
+
+export interface EarningsEvent {
+  date: string;
+  symbol: string;
+  estimate?: number;
+  actual?: number;
+  hour?: string;
+  quarter?: number;
+  year?: number;
+  revenueEstimate?: number;
+  revenueActual?: number;
+}
+
+export interface PriceAlert {
+  id: string;
+  ticker: string;
+  condition: 'above' | 'below';
+  price: number;
+  active: boolean;
+  triggeredAt?: string;
+  createdAt: string;
 }

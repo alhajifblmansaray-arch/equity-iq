@@ -49,6 +49,22 @@ export const research = {
         { params: { limit, days } }
       )
       .then((r) => r.data),
+  thesis: (ticker: string) =>
+    api
+      .post<{ ticker: string; text: string; model: string; cached: boolean }>(
+        `/research/${encodeURIComponent(ticker.toUpperCase())}/thesis`
+      )
+      .then((r) => r.data),
+};
+
+import type { PriceAlert } from '../types';
+export const alerts = {
+  list: () => api.get<{ alerts: PriceAlert[] }>('/alerts').then((r) => r.data.alerts),
+  create: (ticker: string, condition: 'above' | 'below', price: number) =>
+    api.post<{ alert: PriceAlert }>('/alerts', { ticker, condition, price }).then((r) => r.data.alert),
+  remove: (id: string) => api.delete(`/alerts/${id}`).then(() => undefined),
+  toggle: (id: string) =>
+    api.post<{ alert: PriceAlert }>(`/alerts/${id}/toggle`).then((r) => r.data.alert),
 };
 
 export const newsApi = {

@@ -2,7 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root,
+:root[data-theme='light'] {
   --cream: #F5F1EB;
   --cream-tint: #EFEAE0;
   --surface: #FFFFFF;
@@ -14,6 +15,22 @@
   --brick: #C04E40;
   --amber: #B8853A;
   --dusty: #3D6E8E;
+  --skel-mid: #f7f3ec;
+}
+
+:root[data-theme='dark'] {
+  --cream: #14110D;
+  --cream-tint: #1E1B16;
+  --surface: #1A1714;
+  --hairline: #2C2823;
+  --ink: #F0EBE3;
+  --ink-secondary: #A39E96;
+  --ink-tertiary: #6E6963;
+  --forest: #5FAA82;
+  --brick: #E07C70;
+  --amber: #D9A65A;
+  --dusty: #7AA3C2;
+  --skel-mid: #221E18;
 }
 
 * {
@@ -34,7 +51,8 @@ body {
 
 @layer components {
   .card {
-    @apply bg-white rounded-3xl shadow-card p-6 md:p-8;
+    background: var(--surface);
+    @apply rounded-3xl shadow-card p-6 md:p-8;
   }
   .eyebrow {
     @apply text-[12px] uppercase tracking-eyebrow text-ink-tertiary font-medium;
@@ -52,11 +70,17 @@ body {
   .pill-mute   { background: rgba(154,154,154,0.14); color: var(--ink-secondary); }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-full bg-ink text-cream px-5 py-2.5 text-sm font-medium transition active:scale-[0.98] hover:bg-black;
+    background: var(--ink);
+    color: var(--cream);
+    @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium transition active:scale-[0.98];
   }
+  .btn-primary:hover { opacity: 0.92; }
   .btn-ghost {
-    @apply inline-flex items-center justify-center rounded-full border border-hairline bg-transparent px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-cream-tint;
+    border: 1px solid var(--hairline);
+    color: var(--ink);
+    @apply inline-flex items-center justify-center rounded-full bg-transparent px-5 py-2.5 text-sm font-medium transition;
   }
+  .btn-ghost:hover { background: var(--cream-tint); }
 
   .hairline-divider {
     height: 1px;
@@ -64,11 +88,21 @@ body {
   }
 
   .skel {
-    background: linear-gradient(90deg, var(--cream-tint) 0%, #f7f3ec 50%, var(--cream-tint) 100%);
+    background: linear-gradient(90deg, var(--cream-tint) 0%, var(--skel-mid) 50%, var(--cream-tint) 100%);
     background-size: 800px 100%;
     @apply animate-shimmer rounded-2xl;
   }
 }
+
+/* Bg utilities resolve to CSS vars so themes swap them */
+.bg-cream { background-color: var(--cream); }
+.bg-cream-tint { background-color: var(--cream-tint); }
+.bg-white { background-color: var(--surface) !important; }
+.text-ink { color: var(--ink); }
+.text-ink-secondary { color: var(--ink-secondary); }
+.text-ink-tertiary { color: var(--ink-tertiary); }
+.text-cream { color: var(--cream); }
+.border-hairline { border-color: var(--hairline) !important; }
 
 @layer utilities {
   .animate-delay-1 { animation-delay: 60ms; }
