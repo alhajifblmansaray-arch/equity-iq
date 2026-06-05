@@ -67,6 +67,39 @@ function compactReport(r: ResearchReport): string {
     lines.push(`Recent headlines:`);
     for (const n of r.news.slice(0, 4)) lines.push(`  - ${n.title}${n.publisher ? ` (${n.publisher})` : ''}`);
   }
+  // Pulse — retail sentiment, insider activity, congressional trades, options
+  const p = r.pulse;
+  if (p?.stockTwits) {
+    const s = p.stockTwits;
+    lines.push(
+      `StockTwits (24h): ${s.total} msgs, ${s.bullish} bullish vs ${s.bearish} bearish (${s.bullishPct.toFixed(0)}% bullish-share)`
+    );
+  }
+  if (p?.reddit) {
+    lines.push(`Reddit (past week): ${p.reddit.totalMentions} mentions across ${Object.keys(p.reddit.perSub).filter((k) => p.reddit!.perSub[k] > 0).join(', ')}`);
+    if (p.reddit.topPosts[0]) lines.push(`  Top post: "${p.reddit.topPosts[0].title}" (${p.reddit.topPosts[0].score} upvotes)`);
+  }
+  if (p?.insider && p.insider.length) {
+    const recent = p.insider.slice(0, 4);
+    lines.push(`Insider activity (last few):`);
+    for (const t of recent) {
+      lines.push(`  - ${t.date}  ${t.insider}${t.title ? ` (${t.title})` : ''}  ${t.transaction}  ${t.shares?.toLocaleString?.() || t.shares} sh${t.totalValue ? ` ≈ $${Math.round(t.totalValue).toLocaleString()}` : ''}`);
+    }
+  }
+  if (p?.congressional && p.congressional.length) {
+    const recent = p.congressional.slice(0, 4);
+    lines.push(`Congressional trades (recent):`);
+    for (const t of recent) {
+      lines.push(`  - ${t.date}  ${t.representative} ${t.party ? `(${t.party})` : ''}  ${t.transaction}  ${t.amount}`);
+    }
+  }
+  if (p?.options) {
+    const o = p.options;
+    const pcr = o.putCallRatioOI?.toFixed(2);
+    lines.push(
+      `Options flow: P/C OI ratio ${pcr ?? 'n/a'}, total OI calls=${o.totalOpenInterest.calls.toLocaleString()} / puts=${o.totalOpenInterest.puts.toLocaleString()}${o.avgImpliedVol != null ? `, avg IV ${(o.avgImpliedVol * 100).toFixed(0)}%` : ''}`
+    );
+  }
   return lines.join('\n');
 }
 

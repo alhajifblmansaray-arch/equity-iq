@@ -12,6 +12,10 @@ import {
 } from './yahoo';
 import { stooqHistory } from './stooq';
 import { twelveDataHistory, twelveDataProfile, twelveDataQuote } from './twelveData';
+import { stockTwitsSentiment, type StockTwitsSentiment } from './stocktwits';
+import { redditSentiment, type RedditSentiment } from './reddit';
+import { quiverCongressional, quiverInsider, type CongressionalTrade, type InsiderTrade } from './quiver';
+import { polygonOptionsFlow, type OptionsFlow } from './polygon';
 
 // -------- Technical indicators (computed locally so we never depend on a paid tier) --------
 
@@ -120,6 +124,13 @@ export interface ResearchReport {
   shortInterest: { shortPercent?: number; sharesShort?: number; daysToCover?: number; reportedAt?: string } | null;
   news: NormalizedNews[];
   nextEarnings: { date: string; estimate?: number; hour?: string } | null;
+  pulse: {
+    stockTwits: StockTwitsSentiment | null;
+    reddit: RedditSentiment | null;
+    insider: InsiderTrade[] | null;
+    congressional: CongressionalTrade[] | null;
+    options: OptionsFlow | null;
+  };
 }
 
 function safeNumber(v: any): number | undefined {
@@ -149,6 +160,11 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     tdQuote,
     tdHistory,
     tdProfile,
+    stPulse,
+    redPulse,
+    insider,
+    congress,
+    options,
   ] = await Promise.all([
     fetchMassive(ticker),
     finnhubQuote(ticker),
@@ -166,6 +182,11 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     twelveDataQuote(ticker),
     twelveDataHistory(ticker, 200),
     twelveDataProfile(ticker),
+    stockTwitsSentiment(ticker),
+    redditSentiment(ticker),
+    quiverInsider(ticker, 15),
+    quiverCongressional(ticker, 15),
+    polygonOptionsFlow(ticker),
   ]);
 
   // Profile (Finnhub → Yahoo → Twelve Data)
@@ -357,6 +378,18 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     }
   }
 
+  const pulse = {
+    stockTwits: stPulse,
+    reddit: redPulse,
+    insider,
+    congressional: congress,
+    options,
+  };
+  if (stPulse) providers.push('stocktwits');
+  if (redPulse) providers.push('reddit');
+  if (insider || congress) providers.push('quiver');
+  if (options) providers.push('polygon');
+
   const sections = {
     profile: !!profile,
     snapshot: !!snapshot,
@@ -367,6 +400,8 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     shortInterest: !!shortInterest,
     news: news.length > 0,
     nextEarnings: !!nextEarnings,
+    pulse:
+      !!stPulse || !!redPulse || !!insider || !!congress || !!options,
   };
 
   console.log(`  sections:`, sections);
@@ -384,5 +419,6 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     shortInterest,
     news,
     nextEarnings,
+    pulse,
   };
 }

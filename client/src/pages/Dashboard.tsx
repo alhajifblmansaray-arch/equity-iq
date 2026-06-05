@@ -13,6 +13,7 @@ import { BullBearCard, RisksCard, VerdictCard } from '../components/ReportCards'
 import ThesisCard from '../components/ThesisCard';
 import OutlookCard from '../components/OutlookCard';
 import WhatIfCard from '../components/WhatIfCard';
+import PulseCard from '../components/PulseCard';
 import { useAuth } from '../contexts/AuthContext';
 import { useResearch } from '../hooks/useResearch';
 
@@ -71,6 +72,7 @@ export default function Dashboard() {
           {data.shortInterest && <ShortInterestCard data={data} />}
           {data.valuation && <ValuationCard data={data} />}
           <VerdictCard data={data} />
+          <PulseCard data={data} />
           <OutlookCard data={data} />
           <ThesisCard data={data} />
           <BullBearCard data={data} />

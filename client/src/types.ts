@@ -103,6 +103,89 @@ export interface ResearchReport {
   } | null;
   news: NormalizedNews[];
   nextEarnings: { date: string; estimate?: number; hour?: string } | null;
+  pulse: {
+    stockTwits: StockTwitsSentiment | null;
+    reddit: RedditSentiment | null;
+    insider: InsiderTrade[] | null;
+    congressional: CongressionalTrade[] | null;
+    options: OptionsFlow | null;
+  };
+}
+
+export interface StockTwitsMessage {
+  id: string;
+  user: string;
+  body: string;
+  sentiment: 'bullish' | 'bearish' | null;
+  createdAt: string;
+  url?: string;
+}
+
+export interface StockTwitsSentiment {
+  source: 'stocktwits';
+  total: number;
+  bullish: number;
+  bearish: number;
+  neutral: number;
+  bullishPct: number;
+  messages: StockTwitsMessage[];
+}
+
+export interface RedditPost {
+  id: string;
+  title: string;
+  subreddit: string;
+  score: number;
+  comments: number;
+  createdAt: string;
+  url: string;
+  permalink: string;
+  selftext?: string;
+}
+
+export interface RedditSentiment {
+  source: 'reddit';
+  totalMentions: number;
+  perSub: Record<string, number>;
+  topPosts: RedditPost[];
+}
+
+export interface InsiderTrade {
+  date: string;
+  insider: string;
+  title?: string;
+  transaction: 'buy' | 'sell' | 'other';
+  shares: number;
+  pricePerShare?: number;
+  totalValue?: number;
+}
+
+export interface CongressionalTrade {
+  date: string;
+  representative: string;
+  party?: string;
+  chamber?: string;
+  transaction: string;
+  amount: string;
+  reportDate?: string;
+}
+
+export interface OptionsFlow {
+  source: 'polygon';
+  putCallRatioOI: number | null;
+  putCallRatioVol: number | null;
+  totalOpenInterest: { calls: number; puts: number };
+  totalVolume: { calls: number; puts: number };
+  avgImpliedVol: number | null;
+  topOI: Array<{
+    type: 'call' | 'put';
+    strike: number;
+    expiry: string;
+    openInterest: number;
+    volume: number;
+    impliedVol?: number;
+  }>;
+  sampleSize: number;
 }
 
 export interface EarningsEvent {
