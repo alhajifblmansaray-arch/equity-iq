@@ -13,8 +13,13 @@ export default function Landing() {
     <div className="min-h-screen">
       {/* Top nav */}
       <header
-        className="sticky top-0 z-30 backdrop-blur"
-        style={{ background: 'color-mix(in srgb, var(--cream) 78%, transparent)' }}
+        className="sticky top-0 z-30"
+        style={{
+          background: 'var(--glass-sidebar-bg)',
+          backdropFilter: 'blur(24px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+          borderBottom: '1px solid var(--glass-border)',
+        }}
       >
         <div className="max-w-7xl mx-auto px-6 md:px-10 h-16 flex items-center justify-between">
           <Logo size="md" />

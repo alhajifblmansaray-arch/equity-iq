@@ -35,8 +35,13 @@ export default function Sidebar() {
     <>
       {/* Mobile top bar */}
       <header
-        className="md:hidden sticky top-0 z-30 backdrop-blur border-b border-hairline flex items-center justify-between px-5 h-14"
-        style={{ background: 'color-mix(in srgb, var(--cream) 85%, transparent)' }}
+        className="md:hidden sticky top-0 z-30 flex items-center justify-between px-5 h-14"
+        style={{
+          background: 'var(--glass-sidebar-bg)',
+          backdropFilter: 'blur(24px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+          borderBottom: '1px solid var(--glass-border)',
+        }}
       >
         <Logo size="sm" />
         <div className="flex items-center gap-1">
@@ -53,8 +58,13 @@ export default function Sidebar() {
 
       {/* Desktop sidebar */}
       <aside
-        className="hidden md:flex fixed top-0 left-0 bottom-0 w-64 flex-col border-r border-hairline z-20 backdrop-blur"
-        style={{ background: 'color-mix(in srgb, var(--cream-tint) 50%, transparent)' }}
+        className="hidden md:flex fixed top-0 left-0 bottom-0 w-64 flex-col z-20"
+        style={{
+          background: 'var(--glass-sidebar-bg)',
+          backdropFilter: 'blur(32px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(32px) saturate(180%)',
+          borderRight: '1px solid var(--glass-border)',
+        }}
       >
         <SidebarBody onNavigate={() => {}} />
       </aside>

@@ -16,6 +16,17 @@
   --amber: #B8853A;
   --dusty: #3D6E8E;
   --skel-mid: #f7f3ec;
+
+  /* Glass system */
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-sidebar-bg: rgba(245, 241, 235, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.62);
+  --glass-shadow: 0 8px 32px rgba(0,0,0,0.07), 0 2px 8px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.85);
+
+  /* Orb colors */
+  --orb-1: rgba(46, 93, 67, 0.13);
+  --orb-2: rgba(184, 133, 58, 0.10);
+  --orb-3: rgba(61, 110, 142, 0.07);
 }
 
 :root[data-theme='dark'] {
@@ -31,6 +42,17 @@
   --amber: #DDAE63;
   --dusty: #87ADCC;
   --skel-mid: #2E2920;
+
+  /* Glass system — dark */
+  --glass-bg: rgba(27, 24, 20, 0.72);
+  --glass-sidebar-bg: rgba(20, 17, 13, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-shadow: 0 8px 32px rgba(0,0,0,0.40), 0 2px 8px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
+
+  /* Orb colors — more visible on dark */
+  --orb-1: rgba(111, 184, 154, 0.18);
+  --orb-2: rgba(221, 174, 99, 0.14);
+  --orb-3: rgba(135, 173, 204, 0.11);
 }
 
 * {
@@ -49,10 +71,27 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* Fixed gradient orb layer — renders behind all content.
+   Cards with backdrop-filter will blur these orbs, creating the iOS frosted-glass effect. */
+.glass-orb-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse 900px 800px at 82% 0%, var(--orb-1), transparent 65%),
+    radial-gradient(ellipse 750px 700px at 8% 100%, var(--orb-2), transparent 60%),
+    radial-gradient(ellipse 600px 600px at 96% 62%, var(--orb-3), transparent 65%);
+}
+
 @layer components {
   .card {
-    background: var(--surface);
-    @apply rounded-3xl shadow-card p-6 md:p-8;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    @apply rounded-3xl p-6 md:p-8;
   }
   .eyebrow {
     @apply text-[12px] uppercase tracking-eyebrow text-ink-tertiary font-medium;
@@ -107,7 +146,7 @@ body {
 .text-forest { color: var(--forest); }
 .bg-forest { background-color: var(--forest) !important; }
 
-/* Numeric inputs: hide browser spinners — used by What-if & alert price */
+/* Numeric inputs: hide browser spinners */
 input[type='number']::-webkit-inner-spin-button,
 input[type='number']::-webkit-outer-spin-button {
   -webkit-appearance: none;

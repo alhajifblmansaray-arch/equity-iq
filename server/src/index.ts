@@ -18,6 +18,13 @@ import { startAlertChecker } from './services/alertChecker';
 const PORT = Number(process.env.PORT) || 3001;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/equity-iq';
+
+if (!process.env.SESSION_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('SESSION_SECRET environment variable must be set in production.');
+  }
+  console.warn('⚠️  SESSION_SECRET not set — using insecure default. Set it in server/.env before deploying.');
+}
 const SESSION_SECRET = process.env.SESSION_SECRET || 'change-me-in-production';
 
 async function main(): Promise<void> {

@@ -1,8 +1,17 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import passport from 'passport';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { User, IUser } from '../models/User';
 import { googleEnabled } from '../config/passport';
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const router = Router();
 
@@ -31,7 +40,7 @@ router.get('/me', (req, res) => {
   res.json({ user: null, googleEnabled: googleEnabled() });
 });
 
-router.post('/signup', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/signup', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues[0]?.message || 'Invalid input.' });
@@ -55,7 +64,7 @@ router.post('/signup', async (req: Request, res: Response, next: NextFunction) =
   }
 });
 
-router.post('/login', (req, res, next) => {
+router.post('/login', authLimiter, (req, res, next) => {
   passport.authenticate('local', (err: Error | null, user: IUser | false, info: { message?: string } | undefined) => {
     if (err) return next(err);
     if (!user) {
@@ -73,7 +82,7 @@ router.post('/logout', (req, res, next) => {
   req.logout((err) => {
     if (err) return next(err);
     req.session.destroy(() => {
-      res.clearCookie('connect.sid');
+      res.clearCookie('equity.sid');
       res.json({ ok: true });
     });
   });

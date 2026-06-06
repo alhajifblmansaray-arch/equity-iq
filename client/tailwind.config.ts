@@ -36,6 +36,8 @@ const config: Config = {
       boxShadow: {
         card: '0 1px 2px rgba(0,0,0,0.02), 0 1px 1px rgba(0,0,0,0.03)',
         cardHover: '0 4px 12px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.04)',
+        glass: '0 8px 32px rgba(0,0,0,0.07), 0 2px 8px rgba(0,0,0,0.04)',
+        glassHover: '0 12px 40px rgba(0,0,0,0.10), 0 2px 10px rgba(0,0,0,0.05)',
         pill: '0 1px 3px rgba(0,0,0,0.06)',
       },
       keyframes: {

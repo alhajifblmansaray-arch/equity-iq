@@ -46,7 +46,9 @@ function PublicOnly({ children }: { children: JSX.Element }) {
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <div aria-hidden="true" className="glass-orb-layer" />
+      <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
       <Route path="/signup" element={<PublicOnly><Signup /></PublicOnly>} />
@@ -60,6 +62,7 @@ export default function App() {
         <Route path="/alerts" element={<Alerts />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }
