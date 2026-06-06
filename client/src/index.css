@@ -17,16 +17,17 @@
   --dusty: #3D6E8E;
   --skel-mid: #f7f3ec;
 
-  /* Glass system — light */
-  --glass-bg: rgba(255, 255, 255, 0.65);
-  --glass-sidebar-bg: rgba(245, 241, 235, 0.86);
-  --glass-border: rgba(255, 255, 255, 0.65);
-  --glass-shadow: 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.90);
+  /* Glass system — light. Lower opacity = more colour bleeds through the frost. */
+  --glass-bg: rgba(255, 255, 255, 0.48);
+  --glass-sidebar-bg: rgba(245, 241, 235, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.70);
+  --glass-shadow: 0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.95);
 
-  /* Orbs — vivid enough to show clearly through blur */
-  --orb-1: rgba(46, 93, 67, 0.30);
-  --orb-2: rgba(184, 133, 58, 0.24);
-  --orb-3: rgba(61, 110, 142, 0.18);
+  /* Orbs — vivid so colour is clearly visible through the blurred glass */
+  --orb-1: rgba(46, 93, 67, 0.42);
+  --orb-2: rgba(184, 133, 58, 0.38);
+  --orb-3: rgba(61, 110, 142, 0.30);
+  --orb-4: rgba(192, 78, 64, 0.24);
 }
 
 :root[data-theme='dark'] {
@@ -44,15 +45,16 @@
   --skel-mid: #2E2920;
 
   /* Glass system — dark */
-  --glass-bg: rgba(27, 24, 20, 0.65);
-  --glass-sidebar-bg: rgba(20, 17, 13, 0.86);
-  --glass-border: rgba(255, 255, 255, 0.10);
-  --glass-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.07);
+  --glass-bg: rgba(27, 24, 20, 0.52);
+  --glass-sidebar-bg: rgba(20, 17, 13, 0.74);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-shadow: 0 8px 32px rgba(0,0,0,0.50), 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
 
   /* Orbs — brighter on dark background */
-  --orb-1: rgba(111, 184, 154, 0.32);
-  --orb-2: rgba(221, 174, 99, 0.26);
-  --orb-3: rgba(135, 173, 204, 0.20);
+  --orb-1: rgba(111, 184, 154, 0.40);
+  --orb-2: rgba(221, 174, 99, 0.34);
+  --orb-3: rgba(135, 173, 204, 0.28);
+  --orb-4: rgba(232, 139, 126, 0.24);
 }
 
 * {
@@ -65,14 +67,18 @@
   backdrop-filter on cards reads through body/root (both transparent) to
   reach html's background, blurring the orbs = iOS frosted-glass effect.
   background-attachment: fixed keeps orbs anchored to the viewport as you scroll.
+
+  Positions are spread across the WHOLE viewport (incl. the centre, where the
+  content column lives) so cards actually have colour behind them to frost.
 */
 html {
   height: 100%;
   background-color: var(--cream);
   background-image:
-    radial-gradient(ellipse 900px 800px at 82% 0%,   var(--orb-1), transparent 65%),
-    radial-gradient(ellipse 750px 700px at 8%  100%, var(--orb-2), transparent 60%),
-    radial-gradient(ellipse 600px 600px at 96% 62%,  var(--orb-3), transparent 65%);
+    radial-gradient(ellipse 800px 700px at 75% 8%,   var(--orb-1), transparent 60%),
+    radial-gradient(ellipse 750px 700px at 20% 90%,  var(--orb-2), transparent 58%),
+    radial-gradient(ellipse 700px 650px at 92% 65%,  var(--orb-3), transparent 60%),
+    radial-gradient(ellipse 650px 600px at 38% 30%,  var(--orb-4), transparent 60%);
   background-attachment: fixed;
 }
 
