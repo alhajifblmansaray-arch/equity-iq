@@ -11,15 +11,19 @@ import {
   Sparkles,
   TrendingUp,
 } from 'lucide-react';
+import { Scale, Target } from 'lucide-react';
 import { research } from '../lib/api';
 import { useAiJob } from '../contexts/AiJobsContext';
 import type {
+  EdgeVsOptions,
   Forecast,
   ForecastConfidence,
   ForecastDirection,
   ForecastHorizon,
   HorizonForecast,
   ResearchReport,
+  TradeAction,
+  TradeRecommendation,
 } from '../types';
 import { fmtPrice } from '../lib/helpers';
 
@@ -249,6 +253,13 @@ function HorizonPanel({
         </div>
       )}
 
+      {fc.calibration_note && (
+        <div className="flex gap-2 text-[12.5px] text-ink-tertiary leading-relaxed px-1">
+          <span className="flex-shrink-0">↺</span>
+          <span><span className="font-medium text-ink-secondary">Calibrated from track record:</span> {fc.calibration_note}</span>
+        </div>
+      )}
+
       <div className="grid md:grid-cols-2 gap-4">
         {fc.conflicting_signals?.length > 0 && (
           <ListTile icon={<GitBranch size={12} className="text-amber" />} title="Conflicting signals" items={fc.conflicting_signals} tone="amber" />
@@ -304,6 +315,9 @@ function HorizonTile({ f, current }: { f: HorizonForecast; current: number }) {
         </span>
         <span className="text-[12px] text-ink-tertiary ml-1">expected</span>
       </div>
+      {f.expected_move_basis && (
+        <div className="text-[11.5px] text-ink-tertiary mt-1.5">{f.expected_move_basis}</div>
+      )}
 
       <div className="mt-4">
         <div className="flex items-center justify-between text-[11px] text-ink-tertiary mb-1">
@@ -350,6 +364,96 @@ function HorizonTile({ f, current }: { f: HorizonForecast; current: number }) {
           ))}
         </div>
       )}
+
+      {/* Options edge: your expected move vs what the market has priced in */}
+      {(f.edge_vs_options || f.implied_move_pct != null) && (
+        <EdgeRow expected={signed} implied={f.implied_move_pct ?? null} edge={f.edge_vs_options} />
+      )}
+
+      {/* The tradeable call */}
+      {f.trade_recommendation && <TradeRecBlock rec={f.trade_recommendation} />}
+    </div>
+  );
+}
+
+const EDGE_LABEL: Record<EdgeVsOptions, string> = {
+  positive: 'Edge: positive',
+  negative: 'Edge: negative',
+  none: 'Edge: none',
+  unknown: 'Edge: unknown',
+};
+function edgeColor(e?: EdgeVsOptions) {
+  return e === 'positive' ? 'var(--forest)' : e === 'negative' ? 'var(--brick)' : 'var(--ink-tertiary)';
+}
+
+function EdgeRow({ expected, implied, edge }: { expected: number; implied: number | null; edge?: EdgeVsOptions }) {
+  return (
+    <div className="mt-3 pt-3 border-t border-hairline">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Scale size={12} className="text-ink-tertiary" />
+        <span className="eyebrow">Vs options market</span>
+      </div>
+      <div className="flex items-center gap-4 text-[12.5px]">
+        <div>
+          <div className="text-ink-tertiary text-[11px]">Your move</div>
+          <div className="tabular-nums font-medium">{Math.abs(expected).toFixed(1)}%</div>
+        </div>
+        <div>
+          <div className="text-ink-tertiary text-[11px]">Priced in</div>
+          <div className="tabular-nums font-medium">{implied == null ? 'n/a' : `±${Math.abs(implied).toFixed(1)}%`}</div>
+        </div>
+        <span
+          className="ml-auto pill text-[11px]"
+          style={{ background: `color-mix(in srgb, ${edgeColor(edge)} 14%, transparent)`, color: edgeColor(edge) }}
+        >
+          {edge ? EDGE_LABEL[edge] : 'Edge: unknown'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+const ACTION_LABEL: Record<TradeAction, string> = {
+  long_call: 'Long call',
+  long_put: 'Long put',
+  call_debit_spread: 'Call debit spread',
+  put_debit_spread: 'Put debit spread',
+  sell_premium: 'Sell premium',
+  no_trade: 'No trade',
+};
+function actionColor(a: TradeAction) {
+  if (a === 'long_call' || a === 'call_debit_spread') return 'var(--forest)';
+  if (a === 'long_put' || a === 'put_debit_spread') return 'var(--brick)';
+  if (a === 'sell_premium') return 'var(--amber)';
+  return 'var(--ink-tertiary)'; // no_trade
+}
+
+function TradeRecBlock({ rec }: { rec: TradeRecommendation }) {
+  const c = actionColor(rec.action);
+  return (
+    <div className="mt-3 rounded-2xl p-4" style={{ background: `color-mix(in srgb, ${c} 8%, var(--cream-tint))` }}>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="flex items-center gap-1.5">
+          <Target size={13} style={{ color: c }} />
+          <span className="text-[13px] font-semibold tracking-tight1" style={{ color: c }}>
+            {ACTION_LABEL[rec.action]}
+          </span>
+        </div>
+        <span className="pill pill-mute text-[10px]">{rec.conviction} conviction</span>
+      </div>
+      {rec.structure_note && <p className="text-[12.5px] text-ink-secondary leading-relaxed">{rec.structure_note}</p>}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11.5px] text-ink-tertiary">
+        {rec.suggested_expiry && rec.action !== 'no_trade' && (
+          <span>Expiry: <span className="text-ink-secondary">{rec.suggested_expiry}</span></span>
+        )}
+        {rec.action !== 'no_trade' && rec.max_risk_budget_pct != null && (
+          <span>Max risk: <span className="text-ink-secondary">{rec.max_risk_budget_pct}%</span> of options budget</span>
+        )}
+        {rec.breakeven_vs_target && rec.action !== 'no_trade' && (
+          <span>{rec.breakeven_vs_target}</span>
+        )}
+      </div>
+      {rec.reason && <p className="text-[12px] text-ink-secondary leading-relaxed mt-2">{rec.reason}</p>}
     </div>
   );
 }

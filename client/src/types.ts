@@ -225,15 +225,38 @@ export type ForecastHorizon = '1H' | '1D' | '3D' | '1W';
 export type ForecastDirection = 'up' | 'down' | 'flat';
 export type ForecastConfidence = 'low' | 'medium' | 'high';
 
+export type EdgeVsOptions = 'positive' | 'negative' | 'none' | 'unknown';
+export type TradeAction =
+  | 'long_call'
+  | 'long_put'
+  | 'call_debit_spread'
+  | 'put_debit_spread'
+  | 'sell_premium'
+  | 'no_trade';
+
+export interface TradeRecommendation {
+  action: TradeAction;
+  structure_note: string;
+  suggested_expiry: string;
+  conviction: 'low' | 'medium' | 'high';
+  max_risk_budget_pct: number;
+  breakeven_vs_target: string;
+  reason: string;
+}
+
 export interface HorizonForecast {
   horizon: ForecastHorizon;
   direction: ForecastDirection;
   probability_up: number;
   expected_move_pct: number;
+  expected_move_basis?: string;
+  implied_move_pct?: number | null;
+  edge_vs_options?: EdgeVsOptions;
   price_range: { low: number; base: number; high: number };
   confidence: ForecastConfidence;
   key_drivers: string[];
   key_risks: string[];
+  trade_recommendation?: TradeRecommendation;
 }
 
 export interface Forecast {
@@ -245,6 +268,7 @@ export interface Forecast {
   overall_thesis: string;
   conflicting_signals: string[];
   data_gaps: string[];
+  calibration_note?: string;
 }
 
 export interface Outlook {

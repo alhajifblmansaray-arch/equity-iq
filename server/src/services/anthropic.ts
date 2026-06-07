@@ -364,15 +364,38 @@ export type ForecastHorizon = '1H' | '1D' | '3D' | '1W';
 export type ForecastDirection = 'up' | 'down' | 'flat';
 export type ForecastConfidence = 'low' | 'medium' | 'high';
 
+export type EdgeVsOptions = 'positive' | 'negative' | 'none' | 'unknown';
+export type TradeAction =
+  | 'long_call'
+  | 'long_put'
+  | 'call_debit_spread'
+  | 'put_debit_spread'
+  | 'sell_premium'
+  | 'no_trade';
+
+export interface TradeRecommendation {
+  action: TradeAction;
+  structure_note: string;
+  suggested_expiry: string;
+  conviction: 'low' | 'medium' | 'high';
+  max_risk_budget_pct: number;
+  breakeven_vs_target: string;
+  reason: string;
+}
+
 export interface HorizonForecast {
   horizon: ForecastHorizon;
   direction: ForecastDirection;
   probability_up: number;
   expected_move_pct: number;
+  expected_move_basis: string;
+  implied_move_pct: number | null;
+  edge_vs_options: EdgeVsOptions;
   price_range: { low: number; base: number; high: number };
   confidence: ForecastConfidence;
   key_drivers: string[];
   key_risks: string[];
+  trade_recommendation: TradeRecommendation;
 }
 
 export interface Forecast {
@@ -384,6 +407,7 @@ export interface Forecast {
   overall_thesis: string;
   conflicting_signals: string[];
   data_gaps: string[];
+  calibration_note?: string;
 }
 
 type MarketSession =
@@ -475,7 +499,26 @@ Critical discipline:
 - Identify data you were NOT given that would have changed your conclusion, and list it in data_gaps.
 - Never invent data. If a field is unavailable, reason without it and note it.
 - probability_up, expected_move_pct, price_range and direction MUST be internally consistent (e.g. direction "up" ⇒ probability_up > 0.5 and base > current price).
-- If a TRACK RECORD of your past calls is provided, treat it as feedback: correct the biases it reveals (e.g. if you've been over-bullish on 1D, temper it) and don't repeat past mistakes. A poor hit rate on a horizon should lower your confidence there.
+- If a TRACK RECORD of your past calls is provided, treat it as feedback: correct the biases it reveals (e.g. if you've been over-bullish on 1D, temper it) and don't repeat past mistakes. A poor hit rate on a horizon should lower your confidence there. Briefly state how the record changed your call in "calibration_note".
+
+Size the move off real volatility, never off vibes:
+- Do NOT invent a price range. Anchor expected_move_pct to the stock's OWN volatility: use ATR or realized vol if provided, otherwise estimate realized vol from the recent daily closes in the inputs.
+- Scale it to the horizon: a 1H range is a small fraction of the daily move; 1D ≈ the daily move; 3D ≈ daily × ~sqrt(3); 1W ≈ daily × ~sqrt(5). State the basis in "expected_move_basis" (e.g. "≈0.7× daily ATR scaled to 1D"). A calm large-cap and a volatile small-cap must NOT get the same-width range.
+
+The options decision (what makes it tradeable):
+Direction alone never justifies a long option. The only edge: do you expect a BIGGER move than the options market has already priced, in your direction, inside the relevant expiry?
+1. Compute the priced-in move. If options IV or an ATM straddle is in the inputs, derive the implied move for the expiry matching this horizon → "implied_move_pct". If no options data is provided, set implied_move_pct to null, edge_vs_options to "unknown", and trade_recommendation.action to "no_trade" noting options data is unavailable. NEVER guess an implied move.
+2. Compare. edge_vs_options is "positive" only when your expected move exceeds the implied move in your direction. If your expected move is smaller than priced, a long option loses even when you're directionally right — say so and lean to no_trade or a spread. Use "none" when they're roughly equal.
+3. Use IV rank/percentile if given: cheap IV favors buying premium, rich IV favors spreads or selling premium.
+4. Match expiry to WHEN the move should happen — the catalyst must sit inside suggested_expiry, and theta over the hold must not eat the thesis.
+5. Recommend a structure honestly:
+   - long_call / long_put — only when you expect a bigger-and-sooner move than priced, ideally cheap-ish IV with a catalyst in window.
+   - call_debit_spread / put_debit_spread — directional but IV is rich or the move is only partly your way; caps cost and vega.
+   - sell_premium — you expect LESS movement than priced (range-bound), IV rich.
+   - no_trade — conflicting signals, move fully priced, no catalyst, or missing data to judge edge. no_trade is a respectable, often correct answer.
+6. Sizing: max_risk_budget_pct is a hint for the share of a defined options risk budget — keep it small (~0.5–3%) and scale to conviction. Never bet big on one call. Risk framing, not financial advice.
+
+If you used web search: treat fresh results as real but lower-trust than the structured feeds, note what you found in key_drivers, and never let one headline override the weight of the structured data.
 
 Produce one forecast object for EACH horizon requested in the user message (a subset of 1H, 1D, 3D, 1W) — no more, no fewer. If 1H is requested while the market is closed, still produce it but mark confidence "low" and note the closure in data_gaps.
 
@@ -491,15 +534,28 @@ Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly:
       "direction": "up" | "down" | "flat",
       "probability_up": number,
       "expected_move_pct": number,
+      "expected_move_basis": "string (how the size was derived from volatility)",
+      "implied_move_pct": number or null,
+      "edge_vs_options": "positive" | "negative" | "none" | "unknown",
       "price_range": { "low": number, "base": number, "high": number },
       "confidence": "low" | "medium" | "high",
       "key_drivers": ["string"],
-      "key_risks": ["string"]
+      "key_risks": ["string"],
+      "trade_recommendation": {
+        "action": "long_call" | "long_put" | "call_debit_spread" | "put_debit_spread" | "sell_premium" | "no_trade",
+        "structure_note": "string",
+        "suggested_expiry": "string",
+        "conviction": "low" | "medium" | "high",
+        "max_risk_budget_pct": number,
+        "breakeven_vs_target": "string",
+        "reason": "string"
+      }
     }
   ],
   "overall_thesis": "string (2-3 sentences, plain English, jargon-light)",
   "conflicting_signals": ["string"],
-  "data_gaps": ["string"]
+  "data_gaps": ["string"],
+  "calibration_note": "string (how your track record shaped this call; omit if no record)"
 }`;
 
 const forecastCache = new Map<string, { value: Forecast; expires: number }>();
@@ -542,7 +598,7 @@ export async function generateForecast(
 
   const response = await c.messages.create({
     model: MODEL,
-    max_tokens: Math.min(2200, 500 + horizons.length * 450),
+    max_tokens: Math.min(3000, 700 + horizons.length * 600),
     system: FORECAST_SYSTEM,
     messages: [{ role: 'user', content: userMessage }],
   });
