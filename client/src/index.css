@@ -17,17 +17,17 @@
   --dusty: #3D6E8E;
   --skel-mid: #f7f3ec;
 
-  /* Glass system — light. Lower opacity = more colour bleeds through the frost. */
-  --glass-bg: rgba(255, 255, 255, 0.30);
-  --glass-sidebar-bg: rgba(245, 241, 235, 0.55);
-  --glass-border: rgba(255, 255, 255, 0.85);
+  /* Glass system — light. Milky-white frost with a bright rim = iOS glass. */
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-sidebar-bg: rgba(245, 241, 235, 0.62);
+  --glass-border: rgba(255, 255, 255, 0.90);
   --glass-shadow: 0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,1);
 
-  /* Orbs — vivid so colour is clearly visible through the blurred glass */
-  --orb-1: rgba(46, 93, 67, 0.42);
-  --orb-2: rgba(184, 133, 58, 0.38);
-  --orb-3: rgba(61, 110, 142, 0.30);
-  --orb-4: rgba(192, 78, 64, 0.24);
+  /* Orbs — subtle hint of colour behind the frost, not a colourful wallpaper */
+  --orb-1: rgba(46, 93, 67, 0.16);
+  --orb-2: rgba(184, 133, 58, 0.14);
+  --orb-3: rgba(61, 110, 142, 0.12);
+  --orb-4: rgba(192, 78, 64, 0.09);
 }
 
 :root[data-theme='dark'] {
@@ -45,16 +45,16 @@
   --skel-mid: #2E2920;
 
   /* Glass system — dark */
-  --glass-bg: rgba(27, 24, 20, 0.34);
-  --glass-sidebar-bg: rgba(20, 17, 13, 0.58);
+  --glass-bg: rgba(27, 24, 20, 0.48);
+  --glass-sidebar-bg: rgba(20, 17, 13, 0.64);
   --glass-border: rgba(255, 255, 255, 0.16);
   --glass-shadow: 0 8px 32px rgba(0,0,0,0.50), 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12);
 
-  /* Orbs — brighter on dark background */
-  --orb-1: rgba(111, 184, 154, 0.40);
-  --orb-2: rgba(221, 174, 99, 0.34);
-  --orb-3: rgba(135, 173, 204, 0.28);
-  --orb-4: rgba(232, 139, 126, 0.24);
+  /* Orbs — subtle hint of colour behind the frost */
+  --orb-1: rgba(111, 184, 154, 0.18);
+  --orb-2: rgba(221, 174, 99, 0.15);
+  --orb-3: rgba(135, 173, 204, 0.13);
+  --orb-4: rgba(232, 139, 126, 0.11);
 }
 
 * {
@@ -96,8 +96,8 @@ body {
 @layer components {
   .card {
     background: var(--glass-bg);
-    backdrop-filter: blur(30px) saturate(200%);
-    -webkit-backdrop-filter: blur(30px) saturate(200%);
+    backdrop-filter: blur(34px) saturate(150%);
+    -webkit-backdrop-filter: blur(34px) saturate(150%);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
     @apply rounded-3xl p-6 md:p-8;
