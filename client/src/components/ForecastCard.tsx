@@ -5,6 +5,8 @@ import {
   ArrowDownRight,
   ArrowRight,
   ArrowUpRight,
+  ChevronDown,
+  ChevronUp,
   GitBranch,
   Loader2,
   RotateCw,
@@ -192,6 +194,7 @@ function HorizonPanel({
   onRetry: () => void;
   onRefresh: () => void;
 }) {
+  const [showReasoning, setShowReasoning] = useState(false);
   const fc = job.data;
   const single = fc?.forecasts?.find((f) => f.horizon === horizon);
   const isLive = horizon === '1H';
@@ -244,30 +247,87 @@ function HorizonPanel({
         </div>
       </div>
 
+      {/* One-line verdict — the answer, before any detail */}
+      <VerdictStrip f={single} />
+
       <HorizonTile f={single} current={fc.current_price} />
 
-      {fc.overall_thesis && (
-        <div className="rounded-2xl p-5 leading-relaxed text-[15px]" style={{ background: 'color-mix(in srgb, var(--forest) 7%, var(--surface))' }}>
-          <div className="eyebrow text-forest mb-2">Read</div>
-          <p>{fc.overall_thesis}</p>
-        </div>
-      )}
+      {/* The full reasoning is collapsed by default */}
+      <div>
+        <button
+          onClick={() => setShowReasoning((s) => !s)}
+          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-ink-secondary hover:text-ink transition"
+        >
+          {showReasoning ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          {showReasoning ? 'Hide reasoning' : 'Show reasoning'}
+        </button>
 
-      {fc.calibration_note && (
-        <div className="flex gap-2 text-[12.5px] text-ink-tertiary leading-relaxed px-1">
-          <span className="flex-shrink-0">↺</span>
-          <span><span className="font-medium text-ink-secondary">Calibrated from track record:</span> {fc.calibration_note}</span>
-        </div>
-      )}
+        {showReasoning && (
+          <div className="space-y-4 mt-4 animate-fadeUp" style={{ animationDuration: '300ms' }}>
+            {fc.overall_thesis && (
+              <div className="rounded-2xl p-5 leading-relaxed text-[15px]" style={{ background: 'color-mix(in srgb, var(--forest) 7%, var(--surface))' }}>
+                <div className="eyebrow text-forest mb-2">Read</div>
+                <p>{fc.overall_thesis}</p>
+              </div>
+            )}
 
-      <div className="grid md:grid-cols-2 gap-4">
-        {fc.conflicting_signals?.length > 0 && (
-          <ListTile icon={<GitBranch size={12} className="text-amber" />} title="Conflicting signals" items={fc.conflicting_signals} tone="amber" />
-        )}
-        {fc.data_gaps?.length > 0 && (
-          <ListTile icon={<AlertTriangle size={12} className="text-ink-tertiary" />} title="Data gaps" items={fc.data_gaps} tone="mute" />
+            {single.key_drivers?.length > 0 && (
+              <ListTile icon={<TrendingUp size={12} className="text-forest" />} title="What's driving it" items={single.key_drivers} tone="forest" />
+            )}
+            {single.key_risks?.length > 0 && (
+              <ListTile icon={<AlertTriangle size={12} className="text-brick" />} title="What could break it" items={single.key_risks} tone="brick" />
+            )}
+
+            <div className="grid md:grid-cols-2 gap-4">
+              {fc.conflicting_signals?.length > 0 && (
+                <ListTile icon={<GitBranch size={12} className="text-amber" />} title="Conflicting signals" items={fc.conflicting_signals} tone="amber" />
+              )}
+              {fc.data_gaps?.length > 0 && (
+                <ListTile icon={<AlertTriangle size={12} className="text-ink-tertiary" />} title="Data gaps" items={fc.data_gaps} tone="mute" />
+              )}
+            </div>
+
+            {fc.calibration_note && (
+              <div className="flex gap-2 text-[12.5px] text-ink-tertiary leading-relaxed px-1">
+                <span className="flex-shrink-0">↺</span>
+                <span><span className="font-medium text-ink-secondary">Calibrated from track record:</span> {fc.calibration_note}</span>
+              </div>
+            )}
+          </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// One-line verdict: direction + move + probability + confidence + trade call.
+function VerdictStrip({ f }: { f: HorizonForecast }) {
+  const color = colorFor(f.direction);
+  const signed = f.expected_move_pct ?? 0;
+  const probUp = Math.round((f.probability_up ?? 0.5) * 100);
+  const action = f.trade_recommendation?.action;
+  const actionLabel = action ? ACTION_LABEL[action] : null;
+  const tradeColor = action ? actionColor(action) : 'var(--ink-tertiary)';
+  return (
+    <div
+      className="rounded-2xl px-5 py-4 flex flex-wrap items-center gap-x-3 gap-y-1"
+      style={{ background: `color-mix(in srgb, ${color} 9%, var(--surface))` }}
+    >
+      <span style={{ color }} className="flex items-center">{arrowFor(f.direction)}</span>
+      <span className="font-serif text-2xl tracking-tight1 tabular-nums leading-none" style={{ color }}>
+        {f.direction === 'flat' ? '~0%' : `${signed > 0 ? '+' : ''}${signed.toFixed(1)}%`}
+      </span>
+      <span className="text-ink-secondary text-[14px]">{probUp}% up</span>
+      <span className="text-ink-tertiary">·</span>
+      <span className={`pill ${CONF_PILL[f.confidence]} text-[11px]`}>{f.confidence} confidence</span>
+      {actionLabel && (
+        <span
+          className="pill text-[11px] ml-auto"
+          style={{ background: `color-mix(in srgb, ${tradeColor} 14%, transparent)`, color: tradeColor }}
+        >
+          {actionLabel}
+        </span>
+      )}
     </div>
   );
 }
@@ -342,28 +402,6 @@ function HorizonTile({ f, current }: { f: HorizonForecast; current: number }) {
           <span>${fmtPrice(high)}</span>
         </div>
       </div>
-
-      {f.key_drivers?.length > 0 && (
-        <ul className="mt-4 space-y-1.5">
-          {f.key_drivers.slice(0, 4).map((d, i) => (
-            <li key={i} className="flex gap-2 text-[13px] leading-snug text-ink-secondary">
-              <span style={{ color }} className="flex-shrink-0">→</span>
-              <span>{d}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {f.key_risks?.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-hairline space-y-1">
-          {f.key_risks.slice(0, 3).map((r, i) => (
-            <div key={i} className="flex gap-2 text-[12.5px] leading-snug text-ink-tertiary">
-              <span className="flex-shrink-0">⚠</span>
-              <span>{r}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Options edge: your expected move vs what the market has priced in */}
       {(f.edge_vs_options || f.implied_move_pct != null) && (
@@ -467,9 +505,15 @@ function ListTile({
   icon: React.ReactNode;
   title: string;
   items: string[];
-  tone: 'amber' | 'mute';
+  tone: 'amber' | 'mute' | 'forest' | 'brick';
 }) {
-  const dot = tone === 'amber' ? 'var(--amber)' : 'var(--ink-tertiary)';
+  const dotMap: Record<string, string> = {
+    amber: 'var(--amber)',
+    mute: 'var(--ink-tertiary)',
+    forest: 'var(--forest)',
+    brick: 'var(--brick)',
+  };
+  const dot = dotMap[tone] || 'var(--ink-tertiary)';
   return (
     <div className="rounded-2xl p-5" style={{ background: 'var(--surface)' }}>
       <div className="flex items-center gap-1.5 mb-3">
