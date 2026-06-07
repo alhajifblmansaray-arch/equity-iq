@@ -168,7 +168,7 @@ router.get('/:ticker/intraday', requireAuth, async (req, res, next) => {
 });
 
 // AI thesis (Anthropic Claude). Returns one ~3-paragraph synthesis.
-import { chatAboutTicker, generateOutlook, generateThesis, isAnthropicEnabled } from '../services/anthropic';
+import { chatAboutTicker, generateForecast, generateOutlook, generateThesis, isAnthropicEnabled } from '../services/anthropic';
 import { z } from 'zod';
 
 router.post('/:ticker/thesis', requireAuth, async (req, res, next) => {
@@ -335,6 +335,30 @@ router.post('/:ticker/outlook', requireAuth, async (req, res, next) => {
     res.json({ ticker, outlook });
   } catch (err: any) {
     handleAiError(err, res, next, 'Outlook');
+  }
+});
+
+// Multi-horizon price forecast — structured AI synthesis weighting inputs by horizon.
+router.post('/:ticker/forecast', requireAuth, async (req, res, next) => {
+  const ticker = String(req.params.ticker || '').toUpperCase().trim();
+  if (!validTicker(ticker)) {
+    res.status(400).json({ error: 'Invalid ticker.' });
+    return;
+  }
+  if (!isAnthropicEnabled()) {
+    res.status(503).json({ error: 'AI forecast is unavailable. Set ANTHROPIC_API_KEY in server/.env.' });
+    return;
+  }
+  try {
+    const report = await buildResearchReport(ticker);
+    if (!report.snapshot && !report.priceHistory) {
+      res.status(404).json({ error: `No data found for ${ticker}.` });
+      return;
+    }
+    const forecast = await generateForecast(report);
+    res.json({ ticker, forecast });
+  } catch (err: any) {
+    handleAiError(err, res, next, 'Forecast');
   }
 });
 

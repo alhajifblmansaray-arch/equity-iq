@@ -352,3 +352,184 @@ export async function generateOutlook(report: ResearchReport): Promise<Outlook> 
   outlookCache.set(report.ticker, { value: parsed, expires: Date.now() + OUTLOOK_TTL });
   return parsed;
 }
+
+// ---------------------------------------------------------------------------
+// Multi-horizon price forecast. Different horizons are driven by different
+// forces, so the model is told how to weight each input per timeframe. We feed
+// every input we have and explicitly flag the high-value ones we DON'T have so
+// the model lists them in data_gaps instead of hallucinating them.
+// ---------------------------------------------------------------------------
+
+export type ForecastHorizon = '1H' | '1D' | '3D' | '1W';
+export type ForecastDirection = 'up' | 'down' | 'flat';
+export type ForecastConfidence = 'low' | 'medium' | 'high';
+
+export interface HorizonForecast {
+  horizon: ForecastHorizon;
+  direction: ForecastDirection;
+  probability_up: number;
+  expected_move_pct: number;
+  price_range: { low: number; base: number; high: number };
+  confidence: ForecastConfidence;
+  key_drivers: string[];
+  key_risks: string[];
+}
+
+export interface Forecast {
+  ticker: string;
+  as_of: string;
+  market_session: string;
+  current_price: number;
+  forecasts: HorizonForecast[];
+  overall_thesis: string;
+  conflicting_signals: string[];
+  data_gaps: string[];
+}
+
+type MarketSession =
+  | 'pre-market'
+  | 'open'
+  | 'midday'
+  | 'power-hour'
+  | 'after-hours'
+  | 'closed';
+
+// Derive the current US market session from Eastern Time.
+function marketSession(now = new Date()): MarketSession {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'short',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  }).formatToParts(now);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value || '';
+  const weekday = get('weekday');
+  if (weekday === 'Sat' || weekday === 'Sun') return 'closed';
+  const hour = Number(get('hour'));
+  const minute = Number(get('minute'));
+  const mins = hour * 60 + minute;
+  if (mins >= 240 && mins < 570) return 'pre-market'; // 04:00–09:30
+  if (mins >= 570 && mins < 630) return 'open'; // 09:30–10:30
+  if (mins >= 630 && mins < 900) return 'midday'; // 10:30–15:00
+  if (mins >= 900 && mins < 960) return 'power-hour'; // 15:00–16:00
+  if (mins >= 960 && mins < 1200) return 'after-hours'; // 16:00–20:00
+  return 'closed';
+}
+
+function buildForecastInputs(r: ResearchReport, session: MarketSession): string {
+  const lines: string[] = [];
+  const now = new Date();
+  lines.push(`AS OF: ${now.toISOString()} (US Eastern session: ${session})`);
+  lines.push(`MARKET SESSION: ${session}`);
+  if (r.snapshot) {
+    lines.push(`CURRENT PRICE: $${r.snapshot.price.toFixed(2)}`);
+    if (r.snapshot.prevClose != null) {
+      const gap = ((r.snapshot.price - r.snapshot.prevClose) / r.snapshot.prevClose) * 100;
+      lines.push(`PREV CLOSE: $${r.snapshot.prevClose.toFixed(2)} (current vs prev close: ${gap.toFixed(2)}%)`);
+    }
+    if (r.snapshot.open != null) lines.push(`SESSION OHLC: O ${r.snapshot.open} H ${r.snapshot.high} L ${r.snapshot.low}`);
+    if (r.snapshot.vwap != null) lines.push(`VWAP: $${r.snapshot.vwap.toFixed(2)} (price is ${r.snapshot.price >= r.snapshot.vwap ? 'above' : 'below'} VWAP)`);
+  }
+
+  // Recent daily price action (last ~12 closes) for the technical lens.
+  if (r.priceHistory && r.priceHistory.length) {
+    const recent = r.priceHistory.slice(-12);
+    lines.push(
+      `RECENT DAILY CLOSES (oldest→newest): ${recent.map((b) => b.close.toFixed(2)).join(', ')}`
+    );
+  }
+
+  // Everything else the report knows, reusing the shared compactor.
+  lines.push('', '--- FULL REPORT DATA ---', compactReport(r));
+
+  // Be explicit about high-value inputs we do NOT have, so the model puts them
+  // in data_gaps rather than inventing them.
+  lines.push('', '--- INPUTS NOT AVAILABLE (do not fabricate; note relevant ones in data_gaps) ---');
+  lines.push('- Real-time bid/ask/spread and Level 2 depth / order-book imbalance');
+  lines.push('- Intraday OHLCV (1m/5m/15m), live RVOL, opening-range, dark-pool/block prints');
+  lines.push('- Full options gamma exposure (GEX) / dealer positioning / max pain (only aggregate put/call OI + avg IV are provided, if any)');
+  lines.push('- Live intraday breaking-news tape (only daily-resolution headlines are provided)');
+  lines.push('- Macro tape: VIX level/trend, 10yr yield, DXY, sector-ETF relative strength, scheduled macro releases');
+  lines.push('- Institutional 13F ownership changes');
+  return lines.join('\n');
+}
+
+const FORECAST_SYSTEM = `You are a senior multi-strategy equity analyst combining the lenses of a quant trader, a technical analyst, a fundamental analyst, and a market-flow desk. You produce short-to-medium-term price forecasts for a single stock across multiple time horizons.
+
+Core principle: different horizons are driven by different forces, and you weight inputs accordingly.
+- 1-hour horizon: weight order flow, intraday momentum, VWAP, options/gamma positioning, relative volume, live news, and time-of-day. Treat fundamentals and valuation as near-irrelevant here.
+- 1-day horizon: weight overnight/breaking news, the opening gap, daily-chart technicals, analyst actions, sector/index direction, and implied volatility.
+- 3-day to 1-week horizon: weight upcoming catalysts, sentiment trend (and its rate of change), short interest, analyst revisions, sector rotation, and macro regime. Fundamentals begin to matter.
+- Beyond 1 week: weight fundamentals, valuation, earnings trajectory, and macro most heavily.
+
+Critical discipline:
+- Short-horizon price movement is close to a random walk. Your edge is modest. Do NOT express false precision. Calibrate confidence honestly — most intraday forecasts should be "low" or "medium" unless there is a strong, specific driver (clear flow, a fresh catalyst, a decisive technical break).
+- Reason through the bull case AND the bear case before concluding. State which inputs are conflicting.
+- Identify data you were NOT given that would have changed your conclusion, and list it in data_gaps.
+- Never invent data. If a field is unavailable, reason without it and note it.
+- probability_up, expected_move_pct, price_range and direction MUST be internally consistent (e.g. direction "up" ⇒ probability_up > 0.5 and base > current price).
+
+Produce one forecast object per horizon: 1H, 1D, 3D, 1W. If the market is closed, still produce 1H but mark confidence "low" and note the closure in data_gaps.
+
+Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly:
+{
+  "ticker": "string",
+  "as_of": "string",
+  "market_session": "string",
+  "current_price": number,
+  "forecasts": [
+    {
+      "horizon": "1H" | "1D" | "3D" | "1W",
+      "direction": "up" | "down" | "flat",
+      "probability_up": number,
+      "expected_move_pct": number,
+      "price_range": { "low": number, "base": number, "high": number },
+      "confidence": "low" | "medium" | "high",
+      "key_drivers": ["string"],
+      "key_risks": ["string"]
+    }
+  ],
+  "overall_thesis": "string (2-3 sentences, plain English, jargon-light)",
+  "conflicting_signals": ["string"],
+  "data_gaps": ["string"]
+}`;
+
+const forecastCache = new Map<string, { value: Forecast; expires: number }>();
+const FORECAST_TTL = 4 * 60_000; // forecasts go stale fast — short cache
+
+export async function generateForecast(report: ResearchReport): Promise<Forecast> {
+  const c = getClient();
+  if (!c) throw new Error('AI forecast unavailable — set ANTHROPIC_API_KEY.');
+
+  const session = marketSession();
+  const cacheKey = `${report.ticker}:${session}:${Math.floor(Date.now() / FORECAST_TTL)}`;
+  const cached = forecastCache.get(cacheKey);
+  if (cached && cached.expires > Date.now()) return cached.value;
+
+  const userMessage = `Forecast ${report.ticker} (${report.profile?.name || report.ticker}). Inputs below.\n\n${buildForecastInputs(report, session)}\n\nProduce the multi-horizon forecast JSON exactly as specified.`;
+
+  const response = await c.messages.create({
+    model: MODEL,
+    max_tokens: 2200,
+    system: FORECAST_SYSTEM,
+    messages: [{ role: 'user', content: userMessage }],
+  });
+
+  const raw = response.content
+    .filter((b: any) => b.type === 'text')
+    .map((b: any) => b.text)
+    .join('\n');
+
+  const json = extractJsonBlock(raw);
+  let parsed: Forecast;
+  try {
+    parsed = JSON.parse(json) as Forecast;
+  } catch (err) {
+    console.error('Forecast JSON parse error:', err, '\nRaw:', raw.slice(0, 500));
+    throw new Error('AI returned malformed JSON. Try again.');
+  }
+
+  forecastCache.set(cacheKey, { value: parsed, expires: Date.now() + FORECAST_TTL });
+  return parsed;
+}

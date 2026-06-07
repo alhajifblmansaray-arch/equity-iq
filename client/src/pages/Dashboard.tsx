@@ -14,6 +14,7 @@ import ThesisCard from '../components/ThesisCard';
 import OutlookCard from '../components/OutlookCard';
 import WhatIfCard from '../components/WhatIfCard';
 import PulseCard from '../components/PulseCard';
+import ForecastCard from '../components/ForecastCard';
 import { useAuth } from '../contexts/AuthContext';
 import { useResearch } from '../hooks/useResearch';
 
@@ -69,7 +70,7 @@ export default function Dashboard() {
   );
 }
 
-type TabId = 'overview' | 'technicals' | 'fundamentals' | 'ai' | 'sentiment' | 'news';
+type TabId = 'overview' | 'forecast' | 'technicals' | 'fundamentals' | 'ai' | 'sentiment' | 'news';
 
 function ReportTabs({ data }: { data: ReturnType<typeof useResearch>['data'] }) {
   const [active, setActive] = useState<TabId>('overview');
@@ -78,6 +79,7 @@ function ReportTabs({ data }: { data: ReturnType<typeof useResearch>['data'] }) 
   const tabs = useMemo(() => {
     const t: Array<{ id: TabId; label: string }> = [
       { id: 'overview', label: 'Overview' },
+      { id: 'forecast', label: 'Forecast' },
       { id: 'technicals', label: 'Technicals' },
     ];
     if (data?.valuation) t.push({ id: 'fundamentals', label: 'Fundamentals' });
@@ -142,6 +144,7 @@ function ReportTabs({ data }: { data: ReturnType<typeof useResearch>['data'] }) 
             <VerdictCard data={data} />
           </>
         )}
+        {active === 'forecast' && <ForecastCard data={data} />}
         {active === 'technicals' && (
           <>
             <TechnicalsCard data={data} />

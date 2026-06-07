@@ -221,6 +221,32 @@ export interface Prediction {
   basis: string;
 }
 
+export type ForecastHorizon = '1H' | '1D' | '3D' | '1W';
+export type ForecastDirection = 'up' | 'down' | 'flat';
+export type ForecastConfidence = 'low' | 'medium' | 'high';
+
+export interface HorizonForecast {
+  horizon: ForecastHorizon;
+  direction: ForecastDirection;
+  probability_up: number;
+  expected_move_pct: number;
+  price_range: { low: number; base: number; high: number };
+  confidence: ForecastConfidence;
+  key_drivers: string[];
+  key_risks: string[];
+}
+
+export interface Forecast {
+  ticker: string;
+  as_of: string;
+  market_session: string;
+  current_price: number;
+  forecasts: HorizonForecast[];
+  overall_thesis: string;
+  conflicting_signals: string[];
+  data_gaps: string[];
+}
+
 export interface Outlook {
   industry: {
     name: string;

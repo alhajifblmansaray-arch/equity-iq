@@ -76,6 +76,12 @@ export const research = {
         `/research/${encodeURIComponent(ticker.toUpperCase())}/outlook`
       )
       .then((r) => r.data),
+  forecast: (ticker: string) =>
+    api
+      .post<{ ticker: string; forecast: import('../types').Forecast }>(
+        `/research/${encodeURIComponent(ticker.toUpperCase())}/forecast`
+      )
+      .then((r) => r.data),
 };
 
 import type { PriceAlert } from '../types';
