@@ -1,6 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  Activity,
   AlertCircle,
   AlertTriangle,
   ArrowDownRight,
@@ -18,6 +17,7 @@ import type {
   Forecast,
   ForecastConfidence,
   ForecastDirection,
+  ForecastHorizon,
   HorizonForecast,
   ResearchReport,
 } from '../types';
@@ -27,7 +27,16 @@ interface Props {
   data: ResearchReport;
 }
 
-const HORIZON_LABEL: Record<HorizonForecast['horizon'], string> = {
+const HORIZONS: ForecastHorizon[] = ['1H', '1D', '3D', '1W'];
+
+const TAB_LABEL: Record<ForecastHorizon, string> = {
+  '1H': '1 hour',
+  '1D': '1 day',
+  '3D': '3 days',
+  '1W': '1 week',
+};
+
+const HORIZON_LABEL: Record<ForecastHorizon, string> = {
   '1H': 'Next hour',
   '1D': 'Today / tomorrow',
   '3D': 'Next 3 days',
@@ -43,181 +52,120 @@ const SESSION_LABEL: Record<string, string> = {
   closed: 'Market closed',
 };
 
-const NOW_REFRESH_MS = 120_000; // auto-refresh the 1H forecast every 2 min
+const NOW_REFRESH_MS = 120_000; // auto-refresh the live 1H every 2 min
 
 export default function ForecastCard({ data }: Props) {
   const ticker = data.ticker;
+  const [sel, setSel] = useState<ForecastHorizon>('1H');
 
-  // Two independent jobs: the live 1H (auto), and the longer horizons (on demand).
-  const {
-    status: nowStatus,
-    data: nowData,
-    error: nowError,
-    refreshing: nowRefreshing,
-    run: runNow,
-  } = useAiJob<Forecast>('forecast-now', ticker);
-  const {
-    status: longStatus,
-    data: longData,
-    error: longError,
-    run: runLong,
-  } = useAiJob<Forecast>('forecast-long', ticker);
+  // One independent job per horizon — each its own call, cache, and result.
+  const j1H = useAiJob<Forecast>('forecast-1H', ticker);
+  const j1D = useAiJob<Forecast>('forecast-1D', ticker);
+  const j3D = useAiJob<Forecast>('forecast-3D', ticker);
+  const j1W = useAiJob<Forecast>('forecast-1W', ticker);
+  const jobs: Record<ForecastHorizon, ReturnType<typeof useAiJob<Forecast>>> = {
+    '1H': j1H,
+    '1D': j1D,
+    '3D': j3D,
+    '1W': j1W,
+  };
 
-  const loadingNow = nowStatus === 'loading';
-  const loadingLong = longStatus === 'loading';
-
-  function generateNow(silent: boolean) {
-    runNow(() => research.forecast(ticker, ['1H']).then((r) => r.forecast), { silent });
+  function generate(h: ForecastHorizon, silent = false) {
+    jobs[h].run(() => research.forecast(ticker, [h]).then((r) => r.forecast), silent ? { silent: true } : undefined);
   }
-  function generateLong() {
-    runLong(() => research.forecast(ticker, ['1D', '3D', '1W']).then((r) => r.forecast));
+  function generateAll() {
+    HORIZONS.forEach((h) => {
+      if (jobs[h].status === 'idle') generate(h);
+    });
   }
 
-  // Auto-generate the 1H forecast as soon as the tab opens.
+  // Reset to the live tab when the ticker changes.
   useEffect(() => {
-    if (nowStatus === 'idle') generateNow(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticker, nowStatus]);
+    setSel('1H');
+  }, [ticker]);
 
-  // Auto-refresh the 1H forecast on an interval (silently, keeping the last
-  // value on screen). Skips while the market is closed.
+  // 1H auto-generates on open.
+  useEffect(() => {
+    if (j1H.status === 'idle') generate('1H');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ticker, j1H.status]);
+
+  // Clicking a longer-horizon tab generates it (once) — no separate button.
+  useEffect(() => {
+    if (sel !== '1H' && jobs[sel].status === 'idle') generate(sel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sel, ticker, jobs[sel].status]);
+
+  // 1H auto-refreshes silently; pause when the market is closed.
   const sessionRef = useRef<string | undefined>(undefined);
-  sessionRef.current = nowData?.market_session;
+  sessionRef.current = j1H.data?.market_session;
+  const run1H = j1H.run;
   useEffect(() => {
     const id = setInterval(() => {
       if (sessionRef.current === 'closed') return;
-      runNow(() => research.forecast(ticker, ['1H']).then((r) => r.forecast), { silent: true });
+      run1H(() => research.forecast(ticker, ['1H']).then((r) => r.forecast), { silent: true });
     }, NOW_REFRESH_MS);
     return () => clearInterval(id);
-  }, [ticker, runNow]);
+  }, [ticker, run1H]);
 
-  const nowForecast = nowData?.forecasts?.find((f) => f.horizon === '1H');
-  const longForecasts = (longData?.forecasts || []).filter((f) => f.horizon !== '1H');
+  const allStarted = HORIZONS.every((h) => jobs[h].status !== 'idle');
 
   return (
     <div className="card animate-fadeUp">
-      <div className="flex items-start justify-between gap-4 mb-5">
+      <div className="flex items-start justify-between gap-4 mb-4">
         <div>
           <div className="flex items-center gap-1.5 mb-1">
             <TrendingUp size={13} className="text-forest" />
             <span className="eyebrow text-forest">Forecast</span>
           </div>
-          <h3 className="section-title">Multi-horizon outlook</h3>
+          <h3 className="section-title">Pick a horizon</h3>
           <p className="text-ink-secondary text-[14px] mt-2 max-w-2xl leading-relaxed">
-            The next-hour view updates on its own. Generate the day, 3-day, and week views when you
-            want them — each weights the inputs that actually drive that timeframe. The model
-            calibrates against its own track record for this ticker as more outcomes come in.
+            The next hour is live and updates on its own. Tap any other horizon to model it — each is
+            its own read, weighting the inputs that drive that timeframe. The model calibrates against
+            its own track record for this ticker over time.
           </p>
         </div>
-      </div>
-
-      {/* ---- Live 1H section ---- */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium"
-              style={{ background: 'color-mix(in srgb, var(--forest) 12%, transparent)', color: 'var(--forest)' }}>
-              <Activity size={12} />
-              Live · next hour
-            </span>
-            {nowData && (
-              <span className="pill pill-mute text-[11px]">
-                {SESSION_LABEL[nowData.market_session] || nowData.market_session}
-              </span>
-            )}
-          </div>
-          <span className="text-[11px] text-ink-tertiary flex items-center gap-1.5">
-            {nowRefreshing || loadingNow ? (
-              <>
-                <Loader2 size={11} className="animate-spin" /> updating…
-              </>
-            ) : nowData ? (
-              <>Auto-updates · {new Date(nowData.as_of).toLocaleTimeString()}</>
-            ) : null}
-          </span>
-        </div>
-
-        {!nowForecast && loadingNow && (
-          <div className="flex items-center gap-3 text-ink-secondary text-sm rounded-2xl px-5 py-6" style={{ background: 'var(--surface)' }}>
-            <Loader2 size={16} className="animate-spin text-forest flex-shrink-0" />
-            Reading the tape and modeling the next hour…
-          </div>
-        )}
-        {!nowForecast && !loadingNow && nowError && (
-          <div className="flex items-start gap-2 text-brick text-sm rounded-2xl px-4 py-3"
-            style={{ background: 'color-mix(in srgb, var(--brick) 10%, transparent)' }}>
-            <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
-            <span className="whitespace-pre-wrap flex-1">{nowError}</span>
-            <button onClick={() => generateNow(false)} className="text-brick underline hover:no-underline flex-shrink-0">Retry</button>
-          </div>
-        )}
-        {nowForecast && nowData && (
-          <HorizonTile f={nowForecast} current={nowData.current_price} />
-        )}
-      </div>
-
-      {/* ---- On-demand longer horizons ---- */}
-      <div className="hairline-divider mb-5" />
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <div>
-          <div className="eyebrow mb-0.5">Longer horizons</div>
-          <p className="text-ink-secondary text-[13px]">Day, 3-day, and week — generated on request.</p>
-        </div>
-        {longData ? (
-          <button onClick={generateLong} disabled={loadingLong} className="btn-ghost text-sm disabled:opacity-50 flex-shrink-0">
-            {loadingLong ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <RotateCw size={14} className="mr-1.5" />}
-            Refresh
-          </button>
-        ) : (
-          <button onClick={generateLong} disabled={loadingLong} className="btn-primary text-sm disabled:opacity-60 flex-shrink-0">
-            {loadingLong ? (
-              <>
-                <Loader2 size={14} className="animate-spin mr-1.5" /> Modeling…
-              </>
-            ) : (
-              <>
-                <Sparkles size={14} className="mr-1.5" /> Generate 1D · 3D · 1W
-              </>
-            )}
+        {!allStarted && (
+          <button onClick={generateAll} className="btn-ghost text-sm flex-shrink-0" title="Generate all horizons">
+            <Sparkles size={14} className="mr-1.5" /> Generate all
           </button>
         )}
       </div>
 
-      {longError && !longData && (
-        <div className="flex items-start gap-2 text-brick text-sm rounded-2xl px-4 py-3 mb-3"
-          style={{ background: 'color-mix(in srgb, var(--brick) 10%, transparent)' }}>
-          <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
-          <span className="whitespace-pre-wrap flex-1">{longError}</span>
-          <button onClick={generateLong} className="text-brick underline hover:no-underline flex-shrink-0">Retry</button>
-        </div>
-      )}
+      {/* Horizon sub-tabs */}
+      <div className="flex gap-1.5 mb-5 overflow-x-auto no-scrollbar">
+        {HORIZONS.map((h) => {
+          const job = jobs[h];
+          const isSel = sel === h;
+          return (
+            <button
+              key={h}
+              onClick={() => setSel(h)}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[13px] font-medium transition flex-shrink-0 border ${
+                isSel ? 'text-ink' : 'text-ink-secondary hover:text-ink'
+              }`}
+              style={
+                isSel
+                  ? { background: 'var(--surface)', borderColor: 'var(--glass-border)', boxShadow: 'var(--glass-shadow)' }
+                  : { borderColor: 'transparent' }
+              }
+            >
+              {h === '1H' && <span className="w-1.5 h-1.5 rounded-full bg-forest animate-pulseDot" />}
+              {TAB_LABEL[h]}
+              {job.status === 'loading' && <Loader2 size={11} className="animate-spin text-forest" />}
+              {job.status === 'done' && !isSel && <span className="w-1.5 h-1.5 rounded-full bg-forest" title="Ready" />}
+            </button>
+          );
+        })}
+      </div>
 
-      {longData && longForecasts.length > 0 && (
-        <div className="space-y-5">
-          <div className="grid sm:grid-cols-3 gap-4">
-            {longForecasts.map((f) => (
-              <HorizonTile key={f.horizon} f={f} current={longData.current_price} />
-            ))}
-          </div>
-
-          {longData.overall_thesis && (
-            <div className="rounded-2xl p-5 leading-relaxed text-[15px]"
-              style={{ background: 'color-mix(in srgb, var(--forest) 7%, var(--surface))' }}>
-              <div className="eyebrow text-forest mb-2">Overall thesis</div>
-              <p>{longData.overall_thesis}</p>
-            </div>
-          )}
-
-          <div className="grid md:grid-cols-2 gap-4">
-            {longData.conflicting_signals?.length > 0 && (
-              <ListTile icon={<GitBranch size={12} className="text-amber" />} title="Conflicting signals" items={longData.conflicting_signals} tone="amber" />
-            )}
-            {longData.data_gaps?.length > 0 && (
-              <ListTile icon={<AlertTriangle size={12} className="text-ink-tertiary" />} title="Data gaps" items={longData.data_gaps} tone="mute" />
-            )}
-          </div>
-        </div>
-      )}
+      {/* Selected horizon panel */}
+      <HorizonPanel
+        horizon={sel}
+        job={jobs[sel]}
+        onRetry={() => generate(sel)}
+        onRefresh={() => generate(sel, sel === '1H')}
+      />
 
       <p className="text-[11px] text-ink-tertiary mt-5 leading-relaxed">
         Model output, not investment advice. Short-horizon moves are near-random — confidence is kept
@@ -227,7 +175,93 @@ export default function ForecastCard({ data }: Props) {
   );
 }
 
-// ---------------- subcomponents ----------------
+// ---------------- selected-horizon panel ----------------
+
+function HorizonPanel({
+  horizon,
+  job,
+  onRetry,
+  onRefresh,
+}: {
+  horizon: ForecastHorizon;
+  job: ReturnType<typeof useAiJob<Forecast>>;
+  onRetry: () => void;
+  onRefresh: () => void;
+}) {
+  const fc = job.data;
+  const single = fc?.forecasts?.find((f) => f.horizon === horizon);
+  const isLive = horizon === '1H';
+
+  if (!single && job.status === 'loading') {
+    return (
+      <div className="flex items-center gap-3 text-ink-secondary text-sm rounded-2xl px-5 py-6" style={{ background: 'var(--surface)' }}>
+        <Loader2 size={16} className="animate-spin text-forest flex-shrink-0" />
+        {isLive ? 'Reading the tape and modeling the next hour…' : `Modeling the ${HORIZON_LABEL[horizon].toLowerCase()} view…`}
+      </div>
+    );
+  }
+
+  if (!single && job.error) {
+    return (
+      <div className="flex items-start gap-2 text-brick text-sm rounded-2xl px-4 py-3" style={{ background: 'color-mix(in srgb, var(--brick) 10%, transparent)' }}>
+        <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+        <span className="whitespace-pre-wrap flex-1">{job.error}</span>
+        <button onClick={onRetry} className="text-brick underline hover:no-underline flex-shrink-0">Retry</button>
+      </div>
+    );
+  }
+
+  if (!single || !fc) {
+    return (
+      <div className="rounded-2xl px-5 py-6 text-sm text-ink-secondary" style={{ background: 'var(--surface)' }}>
+        Tap <strong>{TAB_LABEL[horizon]}</strong> to model this horizon.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Meta row */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 text-[12px]">
+          <span className="pill pill-mute">{SESSION_LABEL[fc.market_session] || fc.market_session}</span>
+          <span className="text-ink-tertiary">Current ${fmtPrice(fc.current_price)}</span>
+        </div>
+        <div className="text-[11px] text-ink-tertiary flex items-center gap-1.5">
+          {job.refreshing || job.status === 'loading' ? (
+            <><Loader2 size={11} className="animate-spin" /> updating…</>
+          ) : isLive ? (
+            <>Auto-updates · {new Date(fc.as_of).toLocaleTimeString()}</>
+          ) : (
+            <button onClick={onRefresh} className="inline-flex items-center gap-1 hover:text-ink transition">
+              <RotateCw size={11} /> Refresh
+            </button>
+          )}
+        </div>
+      </div>
+
+      <HorizonTile f={single} current={fc.current_price} />
+
+      {fc.overall_thesis && (
+        <div className="rounded-2xl p-5 leading-relaxed text-[15px]" style={{ background: 'color-mix(in srgb, var(--forest) 7%, var(--surface))' }}>
+          <div className="eyebrow text-forest mb-2">Read</div>
+          <p>{fc.overall_thesis}</p>
+        </div>
+      )}
+
+      <div className="grid md:grid-cols-2 gap-4">
+        {fc.conflicting_signals?.length > 0 && (
+          <ListTile icon={<GitBranch size={12} className="text-amber" />} title="Conflicting signals" items={fc.conflicting_signals} tone="amber" />
+        )}
+        {fc.data_gaps?.length > 0 && (
+          <ListTile icon={<AlertTriangle size={12} className="text-ink-tertiary" />} title="Data gaps" items={fc.data_gaps} tone="mute" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------- shared subcomponents ----------------
 
 function colorFor(d: ForecastDirection) {
   return d === 'up' ? 'var(--forest)' : d === 'down' ? 'var(--brick)' : 'var(--ink-tertiary)';
@@ -265,13 +299,13 @@ function HorizonTile({ f, current }: { f: HorizonForecast; current: number }) {
         <span style={{ color }} className="flex items-center">
           {arrowFor(f.direction)}
         </span>
-        <span className="font-serif text-3xl tracking-tight2 tabular-nums leading-none" style={{ color }}>
+        <span className="font-serif text-4xl tracking-tight2 tabular-nums leading-none" style={{ color }}>
           {f.direction === 'flat' ? '~0%' : `${signed > 0 ? '+' : ''}${signed.toFixed(1)}%`}
         </span>
         <span className="text-[12px] text-ink-tertiary ml-1">expected</span>
       </div>
 
-      <div className="mt-3">
+      <div className="mt-4">
         <div className="flex items-center justify-between text-[11px] text-ink-tertiary mb-1">
           <span>{probUp}% chance up</span>
           <span>{100 - probUp}% down</span>
@@ -297,8 +331,8 @@ function HorizonTile({ f, current }: { f: HorizonForecast; current: number }) {
 
       {f.key_drivers?.length > 0 && (
         <ul className="mt-4 space-y-1.5">
-          {f.key_drivers.slice(0, 3).map((d, i) => (
-            <li key={i} className="flex gap-2 text-[12.5px] leading-snug text-ink-secondary">
+          {f.key_drivers.slice(0, 4).map((d, i) => (
+            <li key={i} className="flex gap-2 text-[13px] leading-snug text-ink-secondary">
               <span style={{ color }} className="flex-shrink-0">→</span>
               <span>{d}</span>
             </li>
@@ -307,9 +341,9 @@ function HorizonTile({ f, current }: { f: HorizonForecast; current: number }) {
       )}
 
       {f.key_risks?.length > 0 && (
-        <div className="mt-2.5 pt-2.5 border-t border-hairline">
-          {f.key_risks.slice(0, 2).map((r, i) => (
-            <div key={i} className="flex gap-2 text-[12px] leading-snug text-ink-tertiary">
+        <div className="mt-3 pt-3 border-t border-hairline space-y-1">
+          {f.key_risks.slice(0, 3).map((r, i) => (
+            <div key={i} className="flex gap-2 text-[12.5px] leading-snug text-ink-tertiary">
               <span className="flex-shrink-0">⚠</span>
               <span>{r}</span>
             </div>

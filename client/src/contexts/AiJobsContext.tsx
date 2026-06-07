@@ -11,7 +11,13 @@ import { createContext, useCallback, useContext, useRef, useState, ReactNode } f
  * Jobs are keyed by `${kind}:${ticker}` so each stock keeps its own results.
  */
 
-export type AiJobKind = 'forecast-now' | 'forecast-long' | 'outlook' | 'thesis';
+export type AiJobKind =
+  | 'forecast-1H'
+  | 'forecast-1D'
+  | 'forecast-3D'
+  | 'forecast-1W'
+  | 'outlook'
+  | 'thesis';
 export type AiJobStatus = 'idle' | 'loading' | 'done' | 'error';
 
 interface JobEntry<T = unknown> {
