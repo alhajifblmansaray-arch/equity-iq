@@ -23,7 +23,8 @@
   --glass-bg: rgba(255, 255, 255, 0.34);
   /* Diagonal sheen: a touch less milky so the card stays see-through. */
   --glass-sheen: linear-gradient(135deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.08) 45%, rgba(255,255,255,0.20) 100%);
-  --glass-sidebar-bg: rgba(245, 241, 235, 0.52);
+  --glass-sidebar-bg: rgba(250, 247, 242, 0.38);
+  --glass-sidebar-sheen: linear-gradient(180deg, rgba(255,255,255,0.50) 0%, rgba(255,255,255,0.08) 26%, rgba(255,255,255,0.0) 60%, rgba(255,255,255,0.18) 100%);
   --glass-border: rgba(255, 255, 255, 0.95);
   /* Deeper, softer drop shadow so the pane clearly floats off the cream bg. */
   --glass-shadow: 0 14px 44px rgba(40,30,15,0.16), 0 4px 12px rgba(40,30,15,0.08), inset 0 1px 0 rgba(255,255,255,1), inset 0 0 0 1px rgba(255,255,255,0.30);
@@ -58,7 +59,8 @@
   /* Glass system — dark */
   --glass-bg: rgba(27, 24, 20, 0.34);
   --glass-sheen: linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 42%, rgba(255,255,255,0.05) 100%);
-  --glass-sidebar-bg: rgba(20, 17, 13, 0.58);
+  --glass-sidebar-bg: rgba(20, 17, 13, 0.42);
+  --glass-sidebar-sheen: linear-gradient(180deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.01) 26%, rgba(255,255,255,0.0) 60%, rgba(255,255,255,0.04) 100%);
   --glass-border: rgba(255, 255, 255, 0.18);
   --glass-shadow: 0 10px 36px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.16), inset 0 0 0 1px rgba(255,255,255,0.05);
 
@@ -93,9 +95,9 @@ html {
   background-color: var(--canvas);
   background-image:
     radial-gradient(ellipse 800px 700px at 75% 8%,   var(--orb-1), transparent 60%),
-    radial-gradient(ellipse 750px 700px at 20% 90%,  var(--orb-2), transparent 58%),
+    radial-gradient(ellipse 750px 750px at 4% 78%,   var(--orb-2), transparent 60%),
     radial-gradient(ellipse 700px 650px at 92% 65%,  var(--orb-3), transparent 60%),
-    radial-gradient(ellipse 650px 600px at 38% 30%,  var(--orb-4), transparent 60%);
+    radial-gradient(ellipse 700px 650px at 6% 18%,   var(--orb-4), transparent 60%);
   background-attachment: fixed;
 }
 

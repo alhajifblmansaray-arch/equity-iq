@@ -37,9 +37,9 @@ export default function Sidebar() {
       <header
         className="md:hidden sticky top-0 z-30 flex items-center justify-between px-5 h-14"
         style={{
-          background: 'var(--glass-sidebar-bg)',
-          backdropFilter: 'blur(24px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+          background: 'var(--glass-sidebar-sheen), var(--glass-sidebar-bg)',
+          backdropFilter: 'blur(32px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(32px) saturate(180%)',
           borderBottom: '1px solid var(--glass-border)',
         }}
       >
@@ -60,10 +60,11 @@ export default function Sidebar() {
       <aside
         className="hidden md:flex fixed top-0 left-0 bottom-0 w-64 flex-col z-20"
         style={{
-          background: 'var(--glass-sidebar-bg)',
-          backdropFilter: 'blur(32px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(32px) saturate(180%)',
+          background: 'var(--glass-sidebar-sheen), var(--glass-sidebar-bg)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
           borderRight: '1px solid var(--glass-border)',
+          boxShadow: 'inset -1px 0 0 rgba(255,255,255,0.12), 8px 0 32px rgba(40,30,15,0.06)',
         }}
       >
         <SidebarBody onNavigate={() => {}} />
@@ -78,8 +79,14 @@ export default function Sidebar() {
             style={{ animationDuration: '200ms' }}
           />
           <aside
-            className="absolute top-0 left-0 bottom-0 w-72 bg-cream flex flex-col shadow-xl animate-fadeUp"
-            style={{ animationDuration: '300ms' }}
+            className="absolute top-0 left-0 bottom-0 w-72 flex flex-col shadow-xl animate-fadeUp"
+            style={{
+              animationDuration: '300ms',
+              background: 'var(--glass-sidebar-sheen), var(--glass-sidebar-bg)',
+              backdropFilter: 'blur(40px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+              borderRight: '1px solid var(--glass-border)',
+            }}
           >
             <button
               onClick={() => setOpen(false)}
