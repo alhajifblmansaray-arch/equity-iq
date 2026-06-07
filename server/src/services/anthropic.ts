@@ -455,6 +455,12 @@ function buildForecastInputs(r: ResearchReport, session: MarketSession): string 
   return lines.join('\n');
 }
 
+// Debug helper: returns the exact session + input string the model would receive.
+export function debugForecastInputs(report: ResearchReport): { session: string; inputs: string } {
+  const session = marketSession();
+  return { session, inputs: buildForecastInputs(report, session) };
+}
+
 const FORECAST_SYSTEM = `You are a senior multi-strategy equity analyst combining the lenses of a quant trader, a technical analyst, a fundamental analyst, and a market-flow desk. You produce short-to-medium-term price forecasts for a single stock across multiple time horizons.
 
 Core principle: different horizons are driven by different forces, and you weight inputs accordingly.
