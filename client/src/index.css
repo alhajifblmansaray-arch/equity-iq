@@ -16,20 +16,23 @@
   --amber: #B8853A;
   --dusty: #3D6E8E;
   --skel-mid: #f7f3ec;
+  /* Canvas sits a shade deeper than --cream so white glass panes have contrast. */
+  --canvas: #EAE3D6;
 
-  /* Glass system — light. Milky-white frost with a bright rim = iOS glass. */
-  --glass-bg: rgba(255, 255, 255, 0.30);
-  /* Diagonal sheen: bright at top-left where light hits, fading down. */
-  --glass-sheen: linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.18) 42%, rgba(255,255,255,0.30) 100%);
-  --glass-sidebar-bg: rgba(245, 241, 235, 0.55);
+  /* Glass system — light. Needs more contrast than dark mode or it washes out. */
+  --glass-bg: rgba(255, 255, 255, 0.34);
+  /* Diagonal sheen: a touch less milky so the card stays see-through. */
+  --glass-sheen: linear-gradient(135deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.08) 45%, rgba(255,255,255,0.20) 100%);
+  --glass-sidebar-bg: rgba(245, 241, 235, 0.52);
   --glass-border: rgba(255, 255, 255, 0.95);
-  --glass-shadow: 0 10px 36px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,1), inset 0 0 0 1px rgba(255,255,255,0.25);
+  /* Deeper, softer drop shadow so the pane clearly floats off the cream bg. */
+  --glass-shadow: 0 14px 44px rgba(40,30,15,0.16), 0 4px 12px rgba(40,30,15,0.08), inset 0 1px 0 rgba(255,255,255,1), inset 0 0 0 1px rgba(255,255,255,0.30);
 
-  /* Orbs — subtle hint of colour behind the frost, not a colourful wallpaper */
-  --orb-1: rgba(46, 93, 67, 0.16);
-  --orb-2: rgba(184, 133, 58, 0.14);
-  --orb-3: rgba(61, 110, 142, 0.12);
-  --orb-4: rgba(192, 78, 64, 0.09);
+  /* Orbs — more visible in light mode to give the frost something to catch. */
+  --orb-1: rgba(46, 93, 67, 0.26);
+  --orb-2: rgba(184, 133, 58, 0.24);
+  --orb-3: rgba(61, 110, 142, 0.20);
+  --orb-4: rgba(192, 78, 64, 0.15);
 
   /* Sidebar nav / watchlist chips */
   --glass-item-active: rgba(255, 255, 255, 0.62);
@@ -50,6 +53,7 @@
   --amber: #DDAE63;
   --dusty: #87ADCC;
   --skel-mid: #2E2920;
+  --canvas: #14110D;
 
   /* Glass system — dark */
   --glass-bg: rgba(27, 24, 20, 0.34);
@@ -86,7 +90,7 @@
 */
 html {
   height: 100%;
-  background-color: var(--cream);
+  background-color: var(--canvas);
   background-image:
     radial-gradient(ellipse 800px 700px at 75% 8%,   var(--orb-1), transparent 60%),
     radial-gradient(ellipse 750px 700px at 20% 90%,  var(--orb-2), transparent 58%),
