@@ -18,10 +18,12 @@
   --skel-mid: #f7f3ec;
 
   /* Glass system — light. Milky-white frost with a bright rim = iOS glass. */
-  --glass-bg: rgba(255, 255, 255, 0.45);
-  --glass-sidebar-bg: rgba(245, 241, 235, 0.62);
-  --glass-border: rgba(255, 255, 255, 0.90);
-  --glass-shadow: 0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,1);
+  --glass-bg: rgba(255, 255, 255, 0.30);
+  /* Diagonal sheen: bright at top-left where light hits, fading down. */
+  --glass-sheen: linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.18) 42%, rgba(255,255,255,0.30) 100%);
+  --glass-sidebar-bg: rgba(245, 241, 235, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.95);
+  --glass-shadow: 0 10px 36px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,1), inset 0 0 0 1px rgba(255,255,255,0.25);
 
   /* Orbs — subtle hint of colour behind the frost, not a colourful wallpaper */
   --orb-1: rgba(46, 93, 67, 0.16);
@@ -45,10 +47,11 @@
   --skel-mid: #2E2920;
 
   /* Glass system — dark */
-  --glass-bg: rgba(27, 24, 20, 0.48);
-  --glass-sidebar-bg: rgba(20, 17, 13, 0.64);
-  --glass-border: rgba(255, 255, 255, 0.16);
-  --glass-shadow: 0 8px 32px rgba(0,0,0,0.50), 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12);
+  --glass-bg: rgba(27, 24, 20, 0.34);
+  --glass-sheen: linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 42%, rgba(255,255,255,0.05) 100%);
+  --glass-sidebar-bg: rgba(20, 17, 13, 0.58);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-shadow: 0 10px 36px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.16), inset 0 0 0 1px rgba(255,255,255,0.05);
 
   /* Orbs — subtle hint of colour behind the frost */
   --orb-1: rgba(111, 184, 154, 0.18);
@@ -95,9 +98,10 @@ body {
 
 @layer components {
   .card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(34px) saturate(150%);
-    -webkit-backdrop-filter: blur(34px) saturate(150%);
+    /* Two layers: a diagonal sheen on top, the frost tint underneath. */
+    background: var(--glass-sheen), var(--glass-bg);
+    backdrop-filter: blur(28px) saturate(170%);
+    -webkit-backdrop-filter: blur(28px) saturate(170%);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
     @apply rounded-3xl p-6 md:p-8;
