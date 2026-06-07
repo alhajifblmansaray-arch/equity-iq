@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -6,7 +7,7 @@ import {
   ArrowUpRight,
   GitBranch,
   Loader2,
-  Sparkles,
+  RotateCw,
   TrendingUp,
 } from 'lucide-react';
 import { research } from '../lib/api';
@@ -49,6 +50,13 @@ export default function ForecastCard({ data }: Props) {
     run(() => research.forecast(data.ticker).then((r) => r.forecast));
   }
 
+  // Auto-generate when the tab opens — the user shouldn't have to ask for it.
+  // The shared store + 4-min server cache keep this cheap if status is idle.
+  useEffect(() => {
+    if (status === 'idle') generate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.ticker, status]);
+
   return (
     <div className="card animate-fadeUp">
       <div className="flex items-start justify-between gap-4 mb-5">
@@ -64,17 +72,15 @@ export default function ForecastCard({ data }: Props) {
             fundamentals & macro further out). Honest about its edge and what data it's missing.
           </p>
         </div>
-        {!forecast && (
-          <button onClick={generate} disabled={loading} className="btn-primary text-sm disabled:opacity-60 flex-shrink-0">
-            {loading ? (
-              <>
-                <Loader2 size={14} className="animate-spin mr-1.5" /> Forecasting…
-              </>
-            ) : (
-              <>
-                <Sparkles size={14} className="mr-1.5" /> Run forecast
-              </>
-            )}
+        {forecast && (
+          <button
+            onClick={generate}
+            disabled={loading}
+            className="btn-ghost text-sm disabled:opacity-50 flex-shrink-0"
+            title="Refresh forecast"
+          >
+            {loading ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <RotateCw size={14} className="mr-1.5" />}
+            Refresh
           </button>
         )}
       </div>
@@ -85,20 +91,18 @@ export default function ForecastCard({ data }: Props) {
           style={{ background: 'color-mix(in srgb, var(--brick) 10%, transparent)' }}
         >
           <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
-          <span className="whitespace-pre-wrap">{error}</span>
+          <span className="whitespace-pre-wrap flex-1">{error}</span>
+          <button onClick={generate} disabled={loading} className="text-brick underline hover:no-underline flex-shrink-0">
+            Retry
+          </button>
         </div>
       )}
 
-      {!forecast && !loading && !error && (
-        <div
-          className="rounded-2xl p-5 text-sm leading-relaxed"
-          style={{ background: 'color-mix(in srgb, var(--forest) 5%, transparent)', color: 'var(--ink-secondary)' }}
-        >
-          <p>
-            Click <strong>Run forecast</strong> for a calibrated, multi-horizon price view. Short-horizon moves are
-            close to a coin flip, so the model keeps its confidence honest and tells you which signals conflict and
-            what data would sharpen the call.
-          </p>
+      {/* Auto-running on open — show a calm loading state, no button to press. */}
+      {!forecast && loading && (
+        <div className="flex items-center gap-3 text-ink-secondary text-sm rounded-2xl px-5 py-6">
+          <Loader2 size={16} className="animate-spin text-forest flex-shrink-0" />
+          Reading the tape and modeling each horizon — this takes a few seconds. You can switch tabs; it keeps running.
         </div>
       )}
 
