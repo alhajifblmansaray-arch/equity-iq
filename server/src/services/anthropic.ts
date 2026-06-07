@@ -314,10 +314,31 @@ const outlookCache = new Map<string, { value: Outlook; expires: number }>();
 const OUTLOOK_TTL = 15 * 60_000;
 
 function extractJsonBlock(text: string): string {
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start === -1 || end <= start) return text;
-  return text.slice(start, end + 1);
+  // Strip markdown fences if the model added them, then take the outermost {...}.
+  let t = text.replace(/```json/gi, '```').trim();
+  const fence = t.match(/```\s*([\s\S]*?)```/);
+  if (fence) t = fence[1].trim();
+  const start = t.indexOf('{');
+  const end = t.lastIndexOf('}');
+  if (start === -1 || end <= start) return t;
+  return t.slice(start, end + 1);
+}
+
+// LLMs occasionally emit near-JSON: trailing commas, a leading "+" on numbers,
+// a stray "%" after a numeric value, or NaN/Infinity. Repair those and parse.
+function looseJsonParse<T>(raw: string): T {
+  const block = extractJsonBlock(raw);
+  try {
+    return JSON.parse(block) as T;
+  } catch {
+    const repaired = block
+      .replace(/,\s*([}\]])/g, '$1') // trailing commas
+      .replace(/:(\s*)\+(\d)/g, ':$1$2') // leading + on a numeric value
+      .replace(/:(\s*-?\d+(?:\.\d+)?)\s*%/g, ':$1') // trailing % on a numeric value
+      .replace(/\bNaN\b/g, 'null')
+      .replace(/\b-?Infinity\b/g, 'null');
+    return JSON.parse(repaired) as T;
+  }
 }
 
 export async function generateOutlook(report: ResearchReport): Promise<Outlook> {
@@ -341,12 +362,12 @@ export async function generateOutlook(report: ResearchReport): Promise<Outlook> 
     .map((b: any) => b.text)
     .join('\n');
 
-  const json = extractJsonBlock(raw);
   let parsed: Outlook;
   try {
-    parsed = JSON.parse(json) as Outlook;
+    parsed = looseJsonParse<Outlook>(raw);
   } catch (err) {
-    console.error('Outlook JSON parse error:', err, '\nRaw:', raw.slice(0, 500));
+    const truncated = response.stop_reason === 'max_tokens';
+    console.error('Outlook JSON parse error:', err, truncated ? '(truncated: hit max_tokens)' : '', '\nRaw:', raw.slice(0, 800));
     throw new Error('AI returned malformed JSON. Try again.');
   }
 
@@ -609,7 +630,9 @@ export async function generateForecast(
 
   const response = await c.messages.create({
     model: MODEL,
-    max_tokens: Math.min(3000, 700 + horizons.length * 600),
+    // v2 objects are large (trade rec + drivers + risks); give generous headroom
+    // per horizon so the JSON is never truncated mid-structure.
+    max_tokens: Math.min(4096, 1500 + horizons.length * 900),
     system: FORECAST_SYSTEM,
     messages: [{ role: 'user', content: userMessage }],
   });
@@ -619,13 +642,17 @@ export async function generateForecast(
     .map((b: any) => b.text)
     .join('\n');
 
-  const json = extractJsonBlock(raw);
   let parsed: Forecast;
   try {
-    parsed = JSON.parse(json) as Forecast;
+    parsed = looseJsonParse<Forecast>(raw);
   } catch (err) {
-    console.error('Forecast JSON parse error:', err, '\nRaw:', raw.slice(0, 500));
-    throw new Error('AI returned malformed JSON. Try again.');
+    const truncated = response.stop_reason === 'max_tokens';
+    console.error('Forecast JSON parse error:', err, truncated ? '(truncated: hit max_tokens)' : '', '\nRaw:', raw.slice(0, 800));
+    throw new Error(
+      truncated
+        ? 'AI response was cut off before finishing. Try again.'
+        : 'AI returned malformed JSON. Try again.'
+    );
   }
 
   // Keep only requested horizons in case the model over-produced.
