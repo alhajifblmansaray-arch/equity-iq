@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AlertCircle, RotateCw } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
@@ -64,27 +64,112 @@ export default function Dashboard() {
         </div>
       )}
 
-      {data && !loading && (
-        <div className="space-y-4">
-          <SnapshotCard data={data} />
-          <PriceChart data={data} />
-          <TechnicalsCard data={data} />
-          {data.shortInterest && <ShortInterestCard data={data} />}
-          {data.valuation && <ValuationCard data={data} />}
-          <VerdictCard data={data} />
-          <PulseCard data={data} />
-          <OutlookCard data={data} />
-          <ThesisCard data={data} />
-          <BullBearCard data={data} />
-          <RisksCard data={data} />
-          <WhatIfCard data={data} />
-          <NewsCard data={data} />
-          <div className="text-center text-xs text-ink-tertiary pt-4 pb-2">
-            Data from {data.meta.providers.join(' · ') || 'multiple providers'} ·
-            Last updated {new Date(data.timestamp).toLocaleTimeString()}
-          </div>
+      {data && !loading && <ReportTabs data={data} />}
+    </div>
+  );
+}
+
+type TabId = 'overview' | 'technicals' | 'fundamentals' | 'ai' | 'sentiment' | 'news';
+
+function ReportTabs({ data }: { data: ReturnType<typeof useResearch>['data'] }) {
+  const [active, setActive] = useState<TabId>('overview');
+
+  // Build the list of tabs that actually have data, so we never show an empty one.
+  const tabs = useMemo(() => {
+    const t: Array<{ id: TabId; label: string }> = [
+      { id: 'overview', label: 'Overview' },
+      { id: 'technicals', label: 'Technicals' },
+    ];
+    if (data?.valuation) t.push({ id: 'fundamentals', label: 'Fundamentals' });
+    t.push({ id: 'ai', label: 'AI Analysis' });
+    t.push({ id: 'sentiment', label: 'Sentiment' });
+    t.push({ id: 'news', label: 'News' });
+    return t;
+  }, [data]);
+
+  // Reset to the first tab whenever a new ticker loads, and guard against the
+  // active tab disappearing (e.g. fundamentals when the next ticker has none).
+  useEffect(() => {
+    if (!tabs.some((t) => t.id === active)) setActive('overview');
+  }, [tabs, active]);
+  useEffect(() => {
+    setActive('overview');
+  }, [data?.ticker]);
+
+  if (!data) return null;
+
+  return (
+    <div>
+      <SnapshotCard data={data} />
+
+      {/* Sticky glass tab bar */}
+      <div
+        className="sticky top-0 md:top-0 z-10 -mx-6 md:-mx-10 px-6 md:px-10 mt-4 mb-5"
+      >
+        <div
+          className="flex gap-1 overflow-x-auto rounded-2xl p-1.5 no-scrollbar"
+          style={{
+            background: 'var(--glass-sidebar-bg)',
+            backdropFilter: 'blur(24px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+            border: '1px solid var(--glass-border)',
+            boxShadow: 'var(--glass-shadow)',
+          }}
+        >
+          {tabs.map((t) => {
+            const isActive = active === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setActive(t.id)}
+                className={`whitespace-nowrap px-4 py-2 rounded-xl text-[13px] font-medium transition flex-shrink-0 ${
+                  isActive ? 'text-ink' : 'text-ink-secondary hover:text-ink'
+                }`}
+                style={isActive ? { background: 'var(--surface)', boxShadow: 'var(--glass-shadow)' } : undefined}
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </div>
-      )}
+      </div>
+
+      {/* Tab panels — keyed so each switch re-triggers the fadeUp animation */}
+      <div key={active} className="space-y-4">
+        {active === 'overview' && (
+          <>
+            <PriceChart data={data} />
+            <VerdictCard data={data} />
+          </>
+        )}
+        {active === 'technicals' && (
+          <>
+            <TechnicalsCard data={data} />
+            <WhatIfCard data={data} />
+          </>
+        )}
+        {active === 'fundamentals' && data.valuation && <ValuationCard data={data} />}
+        {active === 'ai' && (
+          <>
+            <OutlookCard data={data} />
+            <ThesisCard data={data} />
+            <BullBearCard data={data} />
+            <RisksCard data={data} />
+          </>
+        )}
+        {active === 'sentiment' && (
+          <>
+            <PulseCard data={data} />
+            {data.shortInterest && <ShortInterestCard data={data} />}
+          </>
+        )}
+        {active === 'news' && <NewsCard data={data} />}
+      </div>
+
+      <div className="text-center text-xs text-ink-tertiary pt-6 pb-2">
+        Data from {data.meta.providers.join(' · ') || 'multiple providers'} ·
+        Last updated {new Date(data.timestamp).toLocaleTimeString()}
+      </div>
     </div>
   );
 }
