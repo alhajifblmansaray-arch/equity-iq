@@ -118,8 +118,8 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2 rounded-2xl text-[14px] font-medium transition ${
                 isActive
-                  ? 'bg-white text-ink shadow-card'
-                  : 'text-ink-secondary hover:bg-white/60 hover:text-ink'
+                  ? 'glass-chip text-ink'
+                  : 'glass-chip-hover text-ink-secondary hover:text-ink'
               }`
             }
           >
@@ -150,7 +150,7 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
                 onClick={onNavigate}
                 className={({ isActive }) =>
                   `flex items-center gap-2 px-3 py-2 rounded-2xl text-[13px] transition ${
-                    isActive ? 'bg-white text-ink shadow-card' : 'text-ink-secondary hover:bg-white/60 hover:text-ink'
+                    isActive ? 'glass-chip text-ink' : 'glass-chip-hover text-ink-secondary hover:text-ink'
                   }`
                 }
               >
@@ -200,7 +200,7 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
           </div>
           <button
             onClick={() => logout()}
-            className="text-ink-tertiary hover:text-ink p-2 rounded-full hover:bg-white/60 transition"
+            className="text-ink-tertiary hover:text-ink p-2 rounded-full glass-chip-hover"
             aria-label="Sign out"
             title="Sign out"
           >
