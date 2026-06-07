@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -11,6 +10,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { research } from '../lib/api';
+import { useAiJob } from '../contexts/AiJobsContext';
 import type {
   Forecast,
   ForecastConfidence,
@@ -41,21 +41,12 @@ const SESSION_LABEL: Record<string, string> = {
 };
 
 export default function ForecastCard({ data }: Props) {
-  const [forecast, setForecast] = useState<Forecast | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Job lives in a shared store so it keeps running if you switch tabs/pages.
+  const { status, data: forecast, error, run } = useAiJob<Forecast>('forecast', data.ticker);
+  const loading = status === 'loading';
 
-  async function generate() {
-    setLoading(true);
-    setError(null);
-    try {
-      const r = await research.forecast(data.ticker);
-      setForecast(r.forecast);
-    } catch (err: any) {
-      setError(err?.response?.data?.error || 'Could not generate forecast.');
-    } finally {
-      setLoading(false);
-    }
+  function generate() {
+    run(() => research.forecast(data.ticker).then((r) => r.forecast));
   }
 
   return (

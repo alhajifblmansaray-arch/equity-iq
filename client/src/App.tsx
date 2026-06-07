@@ -1,6 +1,7 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { WatchlistProvider } from './contexts/WatchlistContext';
+import { AiJobsProvider } from './contexts/AiJobsContext';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -29,11 +30,13 @@ function AuthenticatedShell() {
   if (loading) return <FullScreenLoader />;
   if (!user) return <Navigate to="/login" replace />;
   return (
-    <WatchlistProvider>
-      <Layout>
-        <Outlet />
-      </Layout>
-    </WatchlistProvider>
+    <AiJobsProvider>
+      <WatchlistProvider>
+        <Layout>
+          <Outlet />
+        </Layout>
+      </WatchlistProvider>
+    </AiJobsProvider>
   );
 }
 

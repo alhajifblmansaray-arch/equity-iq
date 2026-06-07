@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import { AlertCircle, ArrowDownRight, ArrowRight, ArrowUpRight, Globe2, Loader2, Sparkles, Telescope } from 'lucide-react';
 import { research } from '../lib/api';
+import { useAiJob } from '../contexts/AiJobsContext';
 import type { Confidence, Direction, Outlook, Prediction, ResearchReport } from '../types';
 import { fmtCompact, fmtPct } from '../lib/helpers';
 
@@ -17,21 +17,11 @@ const RANK_LABEL: Record<Outlook['positioning']['rank'], string> = {
 };
 
 export default function OutlookCard({ data }: Props) {
-  const [outlook, setOutlook] = useState<Outlook | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { status, data: outlook, error, run } = useAiJob<Outlook>('outlook', data.ticker);
+  const loading = status === 'loading';
 
-  async function generate() {
-    setLoading(true);
-    setError(null);
-    try {
-      const r = await research.outlook(data.ticker);
-      setOutlook(r.outlook);
-    } catch (err: any) {
-      setError(err?.response?.data?.error || 'Could not generate outlook.');
-    } finally {
-      setLoading(false);
-    }
+  function generate() {
+    run(() => research.outlook(data.ticker).then((r) => r.outlook));
   }
 
   return (

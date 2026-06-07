@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AlertCircle, RotateCw } from 'lucide-react';
+import { AlertCircle, Loader2, RotateCw } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
 import Skeleton from '../components/Skeleton';
 import SnapshotCard from '../components/SnapshotCard';
@@ -16,6 +16,7 @@ import WhatIfCard from '../components/WhatIfCard';
 import PulseCard from '../components/PulseCard';
 import ForecastCard from '../components/ForecastCard';
 import { useAuth } from '../contexts/AuthContext';
+import { useAiJobStatus } from '../contexts/AiJobsContext';
 import { useResearch } from '../hooks/useResearch';
 
 const QUICK_PICKS = ['NVDA', 'AAPL', 'TSLA', 'SOFI', 'IONQ', 'PLTR', 'MSFT', 'AMZN'];
@@ -89,6 +90,21 @@ function ReportTabs({ data }: { data: ReturnType<typeof useResearch>['data'] }) 
     return t;
   }, [data]);
 
+  // Background AI job statuses, for the per-tab spinner / ready dot.
+  const ticker = data?.ticker || '';
+  const forecastStatus = useAiJobStatus('forecast', ticker);
+  const outlookStatus = useAiJobStatus('outlook', ticker);
+  const thesisStatus = useAiJobStatus('thesis', ticker);
+
+  function tabStatus(id: TabId): 'idle' | 'loading' | 'done' {
+    if (id === 'forecast') return forecastStatus === 'loading' ? 'loading' : forecastStatus === 'done' ? 'done' : 'idle';
+    if (id === 'ai') {
+      if (outlookStatus === 'loading' || thesisStatus === 'loading') return 'loading';
+      if (outlookStatus === 'done' || thesisStatus === 'done') return 'done';
+    }
+    return 'idle';
+  }
+
   // Reset to the first tab whenever a new ticker loads, and guard against the
   // active tab disappearing (e.g. fundamentals when the next ticker has none).
   useEffect(() => {
@@ -120,16 +136,24 @@ function ReportTabs({ data }: { data: ReturnType<typeof useResearch>['data'] }) 
         >
           {tabs.map((t) => {
             const isActive = active === t.id;
+            const st = tabStatus(t.id);
             return (
               <button
                 key={t.id}
                 onClick={() => setActive(t.id)}
-                className={`whitespace-nowrap px-4 py-2 rounded-xl text-[13px] font-medium transition flex-shrink-0 ${
+                className={`whitespace-nowrap px-4 py-2 rounded-xl text-[13px] font-medium transition flex-shrink-0 inline-flex items-center gap-1.5 ${
                   isActive ? 'text-ink' : 'text-ink-secondary hover:text-ink'
                 }`}
                 style={isActive ? { background: 'var(--surface)', boxShadow: 'var(--glass-shadow)' } : undefined}
               >
                 {t.label}
+                {st === 'loading' && <Loader2 size={12} className="animate-spin text-forest" />}
+                {st === 'done' && !isActive && (
+                  <span
+                    className="w-1.5 h-1.5 rounded-full bg-forest"
+                    title="Result ready"
+                  />
+                )}
               </button>
             );
           })}

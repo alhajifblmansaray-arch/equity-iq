@@ -1,6 +1,7 @@
 import { FormEvent, useRef, useState, useEffect } from 'react';
 import { AlertCircle, ArrowUp, Loader2, MessageSquare, Sparkles } from 'lucide-react';
 import { research } from '../lib/api';
+import { useAiJob } from '../contexts/AiJobsContext';
 import type { ResearchReport } from '../types';
 
 interface ChatTurn {
@@ -10,10 +11,12 @@ interface ChatTurn {
 }
 
 export default function ThesisCard({ data }: { data: ResearchReport }) {
-  const [text, setText] = useState<string | null>(null);
-  const [model, setModel] = useState<string>('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Thesis generation lives in the shared store (survives tab switches); the
+  // follow-up chat stays local to this card.
+  const { status, data: thesis, error, run } = useAiJob<{ text: string; model: string }>('thesis', data.ticker);
+  const loading = status === 'loading';
+  const text = thesis?.text ?? null;
+  const model = thesis?.model ?? '';
   const [chat, setChat] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState('');
   const [chatBusy, setChatBusy] = useState(false);
@@ -23,18 +26,8 @@ export default function ThesisCard({ data }: { data: ResearchReport }) {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [chat]);
 
-  async function generate() {
-    setLoading(true);
-    setError(null);
-    try {
-      const r = await research.thesis(data.ticker);
-      setText(r.text);
-      setModel(r.model);
-    } catch (err: any) {
-      setError(err?.response?.data?.error || 'Could not generate thesis.');
-    } finally {
-      setLoading(false);
-    }
+  function generate() {
+    run(() => research.thesis(data.ticker).then((r) => ({ text: r.text, model: r.model })));
   }
 
   async function sendChat(e: FormEvent) {
