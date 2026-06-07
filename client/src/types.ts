@@ -110,6 +110,27 @@ export interface ResearchReport {
     congressional: CongressionalTrade[] | null;
     options: OptionsFlow | null;
   };
+  optionsImplied?: OptionsImplied | null;
+}
+
+export interface ExpiryImplied {
+  expiry: string;
+  daysToExpiry: number;
+  atmStrike: number;
+  atmIV: number | null;
+  straddlePrice: number | null;
+  impliedMovePct: number | null;
+  method: 'straddle' | 'iv';
+}
+
+export interface OptionsImplied {
+  source: string;
+  spot: number;
+  asOf: string;
+  frontAtmIV: number | null;
+  impliedMove1DPct: number | null;
+  ivRank?: number | null;
+  expiries: ExpiryImplied[];
 }
 
 export interface StockTwitsMessage {

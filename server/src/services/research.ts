@@ -16,6 +16,7 @@ import { stockTwitsSentiment, type StockTwitsSentiment } from './stocktwits';
 import { redditSentiment, type RedditSentiment } from './reddit';
 import { quiverCongressional, quiverInsider, type CongressionalTrade, type InsiderTrade } from './quiver';
 import { polygonOptionsFlow, type OptionsFlow } from './polygon';
+import { getOptionsImplied, type OptionsImplied } from './options';
 
 // -------- Technical indicators (computed locally so we never depend on a paid tier) --------
 
@@ -131,6 +132,7 @@ export interface ResearchReport {
     congressional: CongressionalTrade[] | null;
     options: OptionsFlow | null;
   };
+  optionsImplied: OptionsImplied | null;
 }
 
 function safeNumber(v: any): number | undefined {
@@ -165,6 +167,7 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     insider,
     congress,
     options,
+    optionsImplied,
   ] = await Promise.all([
     fetchMassive(ticker),
     finnhubQuote(ticker),
@@ -187,6 +190,7 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     quiverInsider(ticker, 15),
     quiverCongressional(ticker, 15),
     polygonOptionsFlow(ticker),
+    getOptionsImplied(ticker),
   ]);
 
   // Profile (Finnhub → Yahoo → Twelve Data)
@@ -389,6 +393,7 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
   if (redPulse) providers.push('reddit');
   if (insider || congress) providers.push('quiver');
   if (options) providers.push('polygon');
+  if (optionsImplied) providers.push(`options:${optionsImplied.source}`);
 
   const sections = {
     profile: !!profile,
@@ -402,6 +407,7 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     nextEarnings: !!nextEarnings,
     pulse:
       !!stPulse || !!redPulse || !!insider || !!congress || !!options,
+    optionsImplied: !!optionsImplied,
   };
 
   console.log(`  sections:`, sections);
@@ -420,5 +426,6 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     news,
     nextEarnings,
     pulse,
+    optionsImplied,
   };
 }

@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { ResearchReport } from './research';
+import { formatOptionsImpliedForPrompt } from './options';
 
 let client: Anthropic | null = null;
 function getClient(): Anthropic | null {
@@ -467,12 +468,22 @@ function buildForecastInputs(r: ResearchReport, session: MarketSession): string 
   // Everything else the report knows, reusing the shared compactor.
   lines.push('', '--- FULL REPORT DATA ---', compactReport(r));
 
+  // Options-implied moves — the priced-in expectation the trade logic compares against.
+  const optionsBlock = formatOptionsImpliedForPrompt(r.optionsImplied);
+  if (optionsBlock) {
+    lines.push('', '--- OPTIONS-IMPLIED MOVE (use for implied_move_pct + edge_vs_options) ---', optionsBlock);
+  }
+
   // Be explicit about high-value inputs we do NOT have, so the model puts them
   // in data_gaps rather than inventing them.
   lines.push('', '--- INPUTS NOT AVAILABLE (do not fabricate; note relevant ones in data_gaps) ---');
   lines.push('- Real-time bid/ask/spread and Level 2 depth / order-book imbalance');
   lines.push('- Intraday OHLCV (1m/5m/15m), live RVOL, opening-range, dark-pool/block prints');
-  lines.push('- Full options gamma exposure (GEX) / dealer positioning / max pain (only aggregate put/call OI + avg IV are provided, if any)');
+  if (!optionsBlock) {
+    lines.push('- Options chain / ATM IV / straddle — no options-implied move available (set implied_move_pct null, edge "unknown")');
+  } else {
+    lines.push('- Full options gamma exposure (GEX) / dealer positioning / max pain (ATM IV + straddle ARE provided above)');
+  }
   lines.push('- Live intraday breaking-news tape (only daily-resolution headlines are provided)');
   lines.push('- Macro tape: VIX level/trend, 10yr yield, DXY, sector-ETF relative strength, scheduled macro releases');
   lines.push('- Institutional 13F ownership changes');
