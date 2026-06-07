@@ -92,12 +92,17 @@ function ReportTabs({ data }: { data: ReturnType<typeof useResearch>['data'] }) 
 
   // Background AI job statuses, for the per-tab spinner / ready dot.
   const ticker = data?.ticker || '';
-  const forecastStatus = useAiJobStatus('forecast', ticker);
+  const forecastNowStatus = useAiJobStatus('forecast-now', ticker);
+  const forecastLongStatus = useAiJobStatus('forecast-long', ticker);
   const outlookStatus = useAiJobStatus('outlook', ticker);
   const thesisStatus = useAiJobStatus('thesis', ticker);
 
   function tabStatus(id: TabId): 'idle' | 'loading' | 'done' {
-    if (id === 'forecast') return forecastStatus === 'loading' ? 'loading' : forecastStatus === 'done' ? 'done' : 'idle';
+    if (id === 'forecast') {
+      if (forecastNowStatus === 'loading' || forecastLongStatus === 'loading') return 'loading';
+      if (forecastNowStatus === 'done' || forecastLongStatus === 'done') return 'done';
+      return 'idle';
+    }
     if (id === 'ai') {
       if (outlookStatus === 'loading' || thesisStatus === 'loading') return 'loading';
       if (outlookStatus === 'done' || thesisStatus === 'done') return 'done';

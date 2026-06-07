@@ -169,6 +169,8 @@ router.get('/:ticker/intraday', requireAuth, async (req, res, next) => {
 
 // AI thesis (Anthropic Claude). Returns one ~3-paragraph synthesis.
 import { chatAboutTicker, generateForecast, generateOutlook, generateThesis, isAnthropicEnabled } from '../services/anthropic';
+import type { ForecastHorizon } from '../services/anthropic';
+import { getAccuracySummary, formatAccuracyForPrompt, logForecast } from '../services/forecastTracker';
 import { z } from 'zod';
 
 router.post('/:ticker/thesis', requireAuth, async (req, res, next) => {
@@ -339,6 +341,8 @@ router.post('/:ticker/outlook', requireAuth, async (req, res, next) => {
 });
 
 // Multi-horizon price forecast — structured AI synthesis weighting inputs by horizon.
+const VALID_HORIZONS = new Set<ForecastHorizon>(['1H', '1D', '3D', '1W']);
+
 router.post('/:ticker/forecast', requireAuth, async (req, res, next) => {
   const ticker = String(req.params.ticker || '').toUpperCase().trim();
   if (!validTicker(ticker)) {
@@ -349,13 +353,22 @@ router.post('/:ticker/forecast', requireAuth, async (req, res, next) => {
     res.status(503).json({ error: 'AI forecast is unavailable. Set ANTHROPIC_API_KEY in server/.env.' });
     return;
   }
+  // Optional: which horizons to forecast. Defaults to all four.
+  const rawHorizons = Array.isArray(req.body?.horizons) ? req.body.horizons : null;
+  const horizons: ForecastHorizon[] | undefined = rawHorizons
+    ? rawHorizons.filter((h: unknown): h is ForecastHorizon => VALID_HORIZONS.has(h as ForecastHorizon))
+    : undefined;
   try {
     const report = await buildResearchReport(ticker);
     if (!report.snapshot && !report.priceHistory) {
       res.status(404).json({ error: `No data found for ${ticker}.` });
       return;
     }
-    const forecast = await generateForecast(report);
+    // Feed the model its own past accuracy so it can calibrate over time.
+    const accuracyBlock = formatAccuracyForPrompt(await getAccuracySummary(ticker));
+    const forecast = await generateForecast(report, { horizons, accuracyBlock });
+    // Log predictions so a background job can grade them later (the learning loop).
+    void logForecast(ticker, forecast);
     res.json({ ticker, forecast });
   } catch (err: any) {
     handleAiError(err, res, next, 'Forecast');

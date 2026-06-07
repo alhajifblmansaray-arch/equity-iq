@@ -76,10 +76,11 @@ export const research = {
         `/research/${encodeURIComponent(ticker.toUpperCase())}/outlook`
       )
       .then((r) => r.data),
-  forecast: (ticker: string) =>
+  forecast: (ticker: string, horizons?: import('../types').ForecastHorizon[]) =>
     api
       .post<{ ticker: string; forecast: import('../types').Forecast }>(
-        `/research/${encodeURIComponent(ticker.toUpperCase())}/forecast`
+        `/research/${encodeURIComponent(ticker.toUpperCase())}/forecast`,
+        horizons ? { horizons } : {}
       )
       .then((r) => r.data),
 };

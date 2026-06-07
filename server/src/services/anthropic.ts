@@ -469,8 +469,9 @@ Critical discipline:
 - Identify data you were NOT given that would have changed your conclusion, and list it in data_gaps.
 - Never invent data. If a field is unavailable, reason without it and note it.
 - probability_up, expected_move_pct, price_range and direction MUST be internally consistent (e.g. direction "up" ⇒ probability_up > 0.5 and base > current price).
+- If a TRACK RECORD of your past calls is provided, treat it as feedback: correct the biases it reveals (e.g. if you've been over-bullish on 1D, temper it) and don't repeat past mistakes. A poor hit rate on a horizon should lower your confidence there.
 
-Produce one forecast object per horizon: 1H, 1D, 3D, 1W. If the market is closed, still produce 1H but mark confidence "low" and note the closure in data_gaps.
+Produce one forecast object for EACH horizon requested in the user message (a subset of 1H, 1D, 3D, 1W) — no more, no fewer. If 1H is requested while the market is closed, still produce it but mark confidence "low" and note the closure in data_gaps.
 
 Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly:
 {
@@ -496,22 +497,46 @@ Respond with ONLY valid JSON, no markdown fences, no preamble, matching exactly:
 }`;
 
 const forecastCache = new Map<string, { value: Forecast; expires: number }>();
-const FORECAST_TTL = 4 * 60_000; // forecasts go stale fast — short cache
+// 1H goes stale fast; the longer horizons can be cached a bit longer.
+const FORECAST_TTL_SHORT = 90_000; // ~1.5 min for a horizon set containing 1H
+const FORECAST_TTL_LONG = 6 * 60_000; // ~6 min for purely longer-horizon sets
 
-export async function generateForecast(report: ResearchReport): Promise<Forecast> {
+const ALL_HORIZONS: ForecastHorizon[] = ['1H', '1D', '3D', '1W'];
+
+export interface ForecastOptions {
+  horizons?: ForecastHorizon[];
+  accuracyBlock?: string | null;
+}
+
+export async function generateForecast(
+  report: ResearchReport,
+  opts: ForecastOptions = {}
+): Promise<Forecast> {
   const c = getClient();
   if (!c) throw new Error('AI forecast unavailable — set ANTHROPIC_API_KEY.');
 
+  const requested = (opts.horizons?.length ? opts.horizons : ALL_HORIZONS).filter((h) =>
+    ALL_HORIZONS.includes(h)
+  );
+  const horizons = requested.length ? requested : ALL_HORIZONS;
+  const includesShort = horizons.includes('1H');
+  const ttl = includesShort ? FORECAST_TTL_SHORT : FORECAST_TTL_LONG;
+
   const session = marketSession();
-  const cacheKey = `${report.ticker}:${session}:${Math.floor(Date.now() / FORECAST_TTL)}`;
+  const hkey = horizons.join(',');
+  const cacheKey = `${report.ticker}:${session}:${hkey}:${Math.floor(Date.now() / ttl)}`;
   const cached = forecastCache.get(cacheKey);
   if (cached && cached.expires > Date.now()) return cached.value;
 
-  const userMessage = `Forecast ${report.ticker} (${report.profile?.name || report.ticker}). Inputs below.\n\n${buildForecastInputs(report, session)}\n\nProduce the multi-horizon forecast JSON exactly as specified.`;
+  const trackRecord = opts.accuracyBlock
+    ? `\n\n--- YOUR RECENT TRACK RECORD (calibrate against this; correct revealed biases) ---\n${opts.accuracyBlock}`
+    : '';
+
+  const userMessage = `Forecast ${report.ticker} (${report.profile?.name || report.ticker}). Inputs below.\n\n${buildForecastInputs(report, session)}${trackRecord}\n\nProduce forecast objects ONLY for these horizons: ${horizons.join(', ')}. Return the JSON exactly as specified.`;
 
   const response = await c.messages.create({
     model: MODEL,
-    max_tokens: 2200,
+    max_tokens: Math.min(2200, 500 + horizons.length * 450),
     system: FORECAST_SYSTEM,
     messages: [{ role: 'user', content: userMessage }],
   });
@@ -530,6 +555,11 @@ export async function generateForecast(report: ResearchReport): Promise<Forecast
     throw new Error('AI returned malformed JSON. Try again.');
   }
 
-  forecastCache.set(cacheKey, { value: parsed, expires: Date.now() + FORECAST_TTL });
+  // Keep only requested horizons in case the model over-produced.
+  if (Array.isArray(parsed.forecasts)) {
+    parsed.forecasts = parsed.forecasts.filter((f) => horizons.includes(f.horizon));
+  }
+
+  forecastCache.set(cacheKey, { value: parsed, expires: Date.now() + ttl });
   return parsed;
 }
