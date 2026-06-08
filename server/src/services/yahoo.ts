@@ -22,7 +22,7 @@ export interface NormalizedQuote {
   change?: number;
   changePct?: number;
   marketCap?: number;
-  source: 'yahoo' | 'live' | 'derived' | 'finnhub' | 'massive';
+  source: 'yahoo' | 'live' | 'derived' | 'finnhub' | 'massive' | 'polygon';
   asOf: string;
   currency?: string;
   name?: string;

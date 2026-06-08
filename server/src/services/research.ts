@@ -16,6 +16,17 @@ import { stockTwitsSentiment, type StockTwitsSentiment } from './stocktwits';
 import { redditSentiment, type RedditSentiment } from './reddit';
 import { quiverCongressional, quiverInsider, type CongressionalTrade, type InsiderTrade } from './quiver';
 import { polygonOptionsFlow, type OptionsFlow } from './polygon';
+import {
+  polygonEnabled,
+  polygonHistory,
+  polygonNews,
+  polygonProfile,
+  polygonQuote,
+  polygonFinancials,
+  polygonShortInterest,
+  type PolygonFinancials,
+  type PolygonShortInterest,
+} from './polygonProvider';
 import { getOptionsImplied, type OptionsImplied } from './options';
 
 // -------- Technical indicators (computed locally so we never depend on a paid tier) --------
@@ -168,6 +179,12 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     congress,
     options,
     optionsImplied,
+    polyQuote,
+    polyHistory,
+    polyNews,
+    polyProfile,
+    polyFinancials,
+    polyShortInterest,
   ] = await Promise.all([
     fetchMassive(ticker),
     finnhubQuote(ticker),
@@ -191,10 +208,27 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     quiverCongressional(ticker, 15),
     polygonOptionsFlow(ticker),
     getOptionsImplied(ticker),
+    polygonEnabled() ? polygonQuote(ticker) : Promise.resolve(null),
+    polygonEnabled() ? polygonHistory(ticker, 200) : Promise.resolve(null),
+    polygonEnabled() ? polygonNews(ticker, 6) : Promise.resolve(null),
+    polygonEnabled() ? polygonProfile(ticker) : Promise.resolve(null),
+    polygonEnabled() ? polygonFinancials(ticker) : Promise.resolve(null),
+    polygonEnabled() ? polygonShortInterest(ticker) : Promise.resolve(null),
   ]);
 
-  // Profile (Finnhub → Yahoo → Twelve Data)
-  const profile = fhProfile
+  // Profile (Polygon → Finnhub → Yahoo → Twelve Data)
+  const profile = polyProfile
+    ? {
+        name: polyProfile.name,
+        sector: polyProfile.sector,
+        industry: polyProfile.industry,
+        exchange: polyProfile.exchange,
+        summary: polyProfile.summary,
+        logo: polyProfile.logo,
+        website: polyProfile.website,
+        marketCap: polyProfile.marketCap,
+      }
+    : fhProfile
     ? {
         name: fhProfile.name,
         industry: fhProfile.industry,
@@ -217,14 +251,18 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
         website: tdProfile.website,
       }
     : null;
-  if (fhProfile) providers.push('finnhub');
+  if (polyProfile) providers.push('polygon');
+  else if (fhProfile) providers.push('finnhub');
   if (yProfile) providers.push('yahoo');
   if (tdProfile) providers.push('twelvedata');
 
   // Price history fallback chain — first provider with data wins.
-  // Massive → Twelve Data → Yahoo → Alpha Vantage → Stooq
+  // Polygon → Massive → Twelve Data → Yahoo → Alpha Vantage → Stooq
   let priceHistory: NormalizedBar[] | null = null;
-  if (massive.priceHistory?.results?.length) {
+  if (polyHistory && polyHistory.length) {
+    priceHistory = polyHistory;
+    if (!providers.includes('polygon')) providers.push('polygon');
+  } else if (massive.priceHistory?.results?.length) {
     priceHistory = massive.priceHistory.results.map((r: any) => ({
       date: new Date(r.t).toISOString().slice(0, 10),
       open: r.o,
@@ -248,10 +286,14 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
     providers.push('stooq');
   }
 
-  // Snapshot (Massive → Finnhub → Yahoo → derived)
+  // Snapshot (Polygon → Massive → Finnhub → Yahoo → derived)
   let snapshot: NormalizedQuote | null = null;
+  if (polyQuote) {
+    snapshot = polyQuote;
+    if (!providers.includes('polygon')) providers.push('polygon');
+  }
   const massiveTicker = massive.snapshot?.ticker;
-  if (massiveTicker?.day?.c) {
+  if (!snapshot && massiveTicker?.day?.c) {
     const d = massiveTicker.day;
     snapshot = {
       price: massiveTicker.lastTrade?.p ?? massiveTicker.min?.c ?? d.c,
@@ -311,7 +353,7 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
   if (massive.technicals.sma200?.results?.values?.[0]?.value)
     technicals.sma200 = massive.technicals.sma200.results.values[0].value;
 
-  // Valuation (Alpha Vantage → Finnhub bits)
+  // Valuation (Alpha Vantage → Polygon financials fill gaps → Finnhub bits)
   let valuation: ResearchReport['valuation'] = null;
   if (avOverview) {
     valuation = {
@@ -322,7 +364,7 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
       priceToBook: avOverview.priceToBook,
       priceToSales: avOverview.priceToSales,
       dividendYield: avOverview.dividendYield,
-      eps: avOverview.eps,
+      eps: avOverview.eps ?? polyFinancials?.eps,
       beta: avOverview.beta,
       profitMargin: avOverview.profitMargin,
       operatingMargin: avOverview.operatingMargin,
@@ -332,28 +374,42 @@ export async function buildResearchReport(rawTicker: string): Promise<ResearchRe
       analystTargetPrice: avOverview.analystTargetPrice,
     };
     providers.push('alphavantage');
+  } else if (polyFinancials) {
+    // Polygon financials as fallback when AV is unavailable/rate-limited
+    valuation = {
+      eps: polyFinancials.eps,
+    };
+    if (!providers.includes('polygon')) providers.push('polygon');
   }
 
   // Earnings (Alpha Vantage)
   const earnings = avEarnings;
 
-  // Short interest (Massive only)
+  // Short interest (Polygon → Massive)
   let shortInterest: ResearchReport['shortInterest'] = null;
-  const siRow = massive.shortInterest?.results?.[0];
-  if (siRow) {
-    const float = safeNumber(siRow.share_float ?? siRow.float);
-    const shortShares = safeNumber(siRow.short_interest ?? siRow.short_interest_shares);
-    shortInterest = {
-      sharesShort: shortShares,
-      daysToCover: safeNumber(siRow.days_to_cover ?? siRow.daysToCover),
-      shortPercent: float && shortShares ? (shortShares / float) * 100 : safeNumber(siRow.short_percent_of_float),
-      reportedAt: siRow.settlement_date || siRow.record_date,
-    };
+  if (polyShortInterest) {
+    shortInterest = polyShortInterest;
+    if (!providers.includes('polygon')) providers.push('polygon');
+  } else {
+    const siRow = massive.shortInterest?.results?.[0];
+    if (siRow) {
+      const float = safeNumber(siRow.share_float ?? siRow.float);
+      const shortShares = safeNumber(siRow.short_interest ?? siRow.short_interest_shares);
+      shortInterest = {
+        sharesShort: shortShares,
+        daysToCover: safeNumber(siRow.days_to_cover ?? siRow.daysToCover),
+        shortPercent: float && shortShares ? (shortShares / float) * 100 : safeNumber(siRow.short_percent_of_float),
+        reportedAt: siRow.settlement_date || siRow.record_date,
+      };
+    }
   }
 
-  // News (Massive → Finnhub → Yahoo)
+  // News (Polygon → Massive → Finnhub → Yahoo)
   let news: NormalizedNews[] = [];
-  if (massive.news?.results?.length) {
+  if (polyNews && polyNews.length) {
+    news = polyNews;
+    if (!providers.includes('polygon')) providers.push('polygon');
+  } else if (massive.news?.results?.length) {
     news = massive.news.results.slice(0, 6).map((n: any): NormalizedNews => ({
       id: n.id,
       title: n.title,
