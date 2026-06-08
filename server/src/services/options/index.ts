@@ -2,6 +2,7 @@ import type { OptionsAdapter, OptionsImplied } from './types';
 import { yahooOptionsAdapter } from './yahooOptions';
 import { tradierOptionsAdapter } from './tradierOptions';
 import { alphaVantageOptionsAdapter } from './alphaVantageOptions';
+import { marketdataOptionsAdapter } from './marketdataOptions';
 import { massiveOptionsAdapter } from './massiveOptions';
 
 export type { OptionsImplied, ExpiryImplied, OptionsAdapter } from './types';
@@ -10,15 +11,17 @@ const ADAPTERS: Record<string, OptionsAdapter> = {
   yahoo: yahooOptionsAdapter,
   tradier: tradierOptionsAdapter,
   alphavantage: alphaVantageOptionsAdapter,
+  marketdata: marketdataOptionsAdapter,
   massive: massiveOptionsAdapter,
 };
 
 // Adapters to try, in order: the env-selected one first, then the free ones as
-// fallback. Alpha Vantage works internationally with an existing key; Tradier
-// needs a token (US only); Yahoo 429s from data-center IPs.
+// fallback. marketdata.app works internationally + from cloud IPs (needs a free
+// token); Alpha Vantage reuses an existing key but gates/limits options on free
+// tier; Tradier needs a token (US-only signup); Yahoo 429s from data-center IPs.
 function adapterChain(): OptionsAdapter[] {
-  const want = (process.env.OPTIONS_PROVIDER || 'alphavantage').toLowerCase();
-  const order = [want, 'alphavantage', 'tradier', 'yahoo'];
+  const want = (process.env.OPTIONS_PROVIDER || 'marketdata').toLowerCase();
+  const order = [want, 'marketdata', 'alphavantage', 'tradier', 'yahoo'];
   const seen = new Set<string>();
   const chain: OptionsAdapter[] = [];
   for (const name of order) {
