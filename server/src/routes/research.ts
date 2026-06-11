@@ -471,6 +471,41 @@ router.get('/:ticker/forecast-accuracy', requireAuth, async (req, res, next) => 
 });
 
 // Expanded news feed for a specific ticker — used by the dedicated News page.
+router.get('/:ticker/profile', requireAuth, async (req, res, next) => {
+  const ticker = String(req.params.ticker || '').toUpperCase().trim();
+  if (!validTicker(ticker)) {
+    res.status(400).json({ error: 'Invalid ticker symbol.' });
+    return;
+  }
+  try {
+    const { polygonProfile } = await import('../services/polygonProvider.js');
+    const { finnhubProfile } = await import('../services/finnhub.js');
+    const [poly, fh] = await Promise.allSettled([
+      polygonProfile(ticker),
+      finnhubProfile(ticker),
+    ]);
+    const p = poly.status === 'fulfilled' ? poly.value : null;
+    const f = fh.status === 'fulfilled' ? fh.value : null;
+    // Finnhub marketCap is in millions
+    const fhMarketCap = f?.marketCap ? f.marketCap * 1_000_000 : null;
+    res.json({
+      ticker,
+      name: p?.name || f?.name || null,
+      description: p?.summary || null,
+      sector: p?.sector || null,
+      industry: p?.industry || null,
+      exchange: p?.exchange || f?.exchange || null,
+      website: p?.website || f?.weburl || null,
+      logo: p?.logo || f?.logo || null,
+      employees: p?.employees || null,
+      ipo: f?.ipo || null,
+      marketCap: p?.marketCap ?? fhMarketCap,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/:ticker/news', requireAuth, async (req, res, next) => {
   const ticker = String(req.params.ticker || '').toUpperCase().trim();
   if (!validTicker(ticker)) {

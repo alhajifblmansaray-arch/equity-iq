@@ -115,6 +115,22 @@ export const research = {
     api
       .get<ForecastAccuracy>(`/research/${encodeURIComponent(ticker.toUpperCase())}/forecast-accuracy`)
       .then((r) => r.data),
+  profile: (ticker: string) =>
+    api
+      .get<{
+        ticker: string;
+        name: string | null;
+        description: string | null;
+        sector: string | null;
+        industry: string | null;
+        exchange: string | null;
+        website: string | null;
+        logo: string | null;
+        employees: number | null;
+        ipo: string | null;
+        marketCap: number | null;
+      }>(`/research/${encodeURIComponent(ticker.toUpperCase())}/profile`)
+      .then((r) => r.data),
 };
 
 import type { PriceAlert } from '../types';

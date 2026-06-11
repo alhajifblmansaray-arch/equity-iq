@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { CalendarDays, ChevronRight, X } from '../lib/icons';
-import { api } from '../lib/api';
+import { CalendarDays, ChevronRight, ExternalLink, Landmark, Users, X } from '../lib/icons';
+import { api, research } from '../lib/api';
 import type { EarningsEvent } from '../types';
-import { fmtCompact } from '../lib/helpers';
+import { fmtCompact, fmtPrice } from '../lib/helpers';
 import { useWatchlist } from '../contexts/WatchlistContext';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -70,6 +70,8 @@ export default function CalendarPage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [onlyWatchlist, setOnlyWatchlist] = useState(false);
   const [selected, setSelected] = useState<EarningsEvent | null>(null);
+  const [profile, setProfile] = useState<Awaited<ReturnType<typeof research.profile>> | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const detailRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -101,6 +103,17 @@ export default function CalendarPage() {
       .catch(() => setEvents([]))
       .finally(() => setLoading(false));
   }, []);
+
+  // Fetch company profile when a ticker is selected
+  useEffect(() => {
+    if (!selected) { setProfile(null); return; }
+    setProfile(null);
+    setProfileLoading(true);
+    research.profile(selected.symbol)
+      .then(setProfile)
+      .catch(() => setProfile(null))
+      .finally(() => setProfileLoading(false));
+  }, [selected?.symbol]);
 
   const monday = startOfWeek(weekOffset);
   const days = weekDays(monday);
@@ -313,30 +326,94 @@ export default function CalendarPage() {
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                 className="mt-5 card"
               >
+                {/* Header row: logo + name + badges + close */}
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <Link
-                      to={`/dashboard?ticker=${selected.symbol}`}
-                      className="font-serif text-3xl tracking-tight1 hover:text-forest transition"
-                    >
-                      {selected.symbol}
-                    </Link>
-                    {selected.quarter && selected.year && (
-                      <span className="pill" style={{ background: 'var(--cream-tint)', color: 'var(--ink-secondary)' }}>
-                        Q{selected.quarter} {selected.year}
-                      </span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    {profile?.logo && (
+                      <img
+                        src={profile.logo}
+                        alt={selected.symbol}
+                        className="w-10 h-10 rounded-xl object-contain flex-shrink-0"
+                        style={{ background: 'var(--cream-tint)', padding: '4px' }}
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
                     )}
-                    {watchlist.includes(selected.symbol) && (
-                      <span className="pill" style={{ background: 'color-mix(in srgb, var(--amber) 15%, var(--cream-tint))', color: 'var(--amber)' }}>
-                        ★ Watchlist
-                      </span>
-                    )}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Link
+                          to={`/dashboard?ticker=${selected.symbol}`}
+                          className="font-serif text-3xl tracking-tight1 hover:text-forest transition"
+                        >
+                          {selected.symbol}
+                        </Link>
+                        {selected.quarter && selected.year && (
+                          <span className="pill" style={{ background: 'var(--cream-tint)', color: 'var(--ink-secondary)' }}>
+                            Q{selected.quarter} {selected.year}
+                          </span>
+                        )}
+                        {watchlist.includes(selected.symbol) && (
+                          <span className="pill" style={{ background: 'color-mix(in srgb, var(--amber) 15%, var(--cream-tint))', color: 'var(--amber)' }}>
+                            ★ Watchlist
+                          </span>
+                        )}
+                      </div>
+                      {(profile?.name || profileLoading) && (
+                        <div className="text-[13px] text-ink-secondary mt-0.5 truncate">
+                          {profileLoading ? <span className="skel inline-block w-32 h-3 rounded" /> : profile?.name}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <button onClick={() => setSelected(null)} className="text-ink-tertiary hover:text-ink transition p-1">
+                  <button onClick={() => setSelected(null)} className="text-ink-tertiary hover:text-ink transition p-1 flex-shrink-0">
                     <X size={16} />
                   </button>
                 </div>
 
+                {/* Company description */}
+                {(profile?.description || profileLoading) && (
+                  <div className="mt-4 text-[13px] text-ink-secondary leading-relaxed">
+                    {profileLoading
+                      ? <div className="space-y-1.5"><div className="skel h-3 w-full rounded" /><div className="skel h-3 w-4/5 rounded" /></div>
+                      : profile?.description && <ExpandableText text={profile.description} maxChars={220} />
+                    }
+                  </div>
+                )}
+
+                {/* Meta row: sector · industry · exchange · employees · website */}
+                {profile && !profileLoading && (
+                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-ink-tertiary">
+                    {profile.sector && (
+                      <span className="flex items-center gap-1">
+                        <Landmark size={11} />
+                        {profile.sector}
+                      </span>
+                    )}
+                    {profile.employees && (
+                      <span className="flex items-center gap-1">
+                        <Users size={11} />
+                        {fmtCompact(profile.employees)} employees
+                      </span>
+                    )}
+                    {profile.ipo && (
+                      <span>IPO {profile.ipo}</span>
+                    )}
+                    {profile.website && (
+                      <a
+                        href={profile.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-0.5 hover:text-forest transition"
+                      >
+                        <ExternalLink size={10} />
+                        {profile.website.replace(/^https?:\/\/(www\.)?/, '')}
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                <div className="mt-4 h-px" style={{ background: 'var(--hairline)' }} />
+
+                {/* Earnings stats grid */}
                 <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <DetailTile
                     label="Date"
@@ -349,18 +426,21 @@ export default function CalendarPage() {
                     prefix={selected.hour ? TIMING[selected.hour]?.icon + ' ' : ''}
                   />
                   {selected.estimate != null && (
-                    <DetailTile label="EPS estimate" value={`$${selected.estimate.toFixed(2)}`} accent="var(--forest)" />
+                    <DetailTile label="EPS estimate" value={`$${fmtPrice(selected.estimate)}`} accent="var(--forest)" />
                   )}
                   {selected.revenueEstimate != null && (
                     <DetailTile label="Revenue est." value={fmtCompact(selected.revenueEstimate)} />
                   )}
+                  {profile?.marketCap != null && (
+                    <DetailTile label="Market cap" value={fmtCompact(profile.marketCap)} />
+                  )}
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-5 flex flex-wrap gap-2">
                   <Link to={`/dashboard?ticker=${selected.symbol}`} className="btn-forest text-sm">
                     Open research <ChevronRight size={13} />
                   </Link>
-                  <Link to={`/simulator`} className="btn-ghost text-sm">
+                  <Link to={`/simulator`} state={{ ticker: selected.symbol }} className="btn-ghost text-sm">
                     Trade in simulator
                   </Link>
                 </div>
@@ -381,5 +461,22 @@ function DetailTile({ label, value, accent, prefix = '' }: { label: string; valu
         {prefix}{value}
       </div>
     </div>
+  );
+}
+
+function ExpandableText({ text, maxChars }: { text: string; maxChars: number }) {
+  const [expanded, setExpanded] = useState(false);
+  if (text.length <= maxChars) return <>{text}</>;
+  return (
+    <>
+      {expanded ? text : text.slice(0, maxChars).trimEnd() + '…'}
+      {' '}
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="text-forest hover:underline font-medium text-[12px]"
+      >
+        {expanded ? 'Show less' : 'Read more'}
+      </button>
+    </>
   );
 }
