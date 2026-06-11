@@ -20,6 +20,7 @@ import OptionsChainCard from '../components/OptionsChainCard';
 import { useAuth } from '../contexts/AuthContext';
 import { useAiJobStatus } from '../contexts/AiJobsContext';
 import { useResearch } from '../hooks/useResearch';
+import TickerSidebar from '../components/TickerSidebar';
 
 const QUICK_PICKS = ['NVDA', 'AAPL', 'TSLA', 'SOFI', 'IONQ', 'PLTR', 'MSFT', 'AMZN'];
 
@@ -46,39 +47,49 @@ export default function Dashboard() {
   const inReport = !!(data || loading || error);
 
   return (
-    <div className="max-w-5xl mx-auto px-6 md:px-10 py-10">
-      {!inReport ? (
-        <Hero onSearch={handleSearch} userName={user?.name?.split(' ')[0]} />
-      ) : (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-          className="max-w-xl mb-8"
-        >
-          <SearchBar onSearch={handleSearch} compact initial={ticker || ''} />
-        </motion.div>
-      )}
-
-      {loading && <Skeleton />}
-
-      {error && (
-        <div className="max-w-md mx-auto card text-center animate-fadeUp">
-          <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
-            style={{ background: 'rgba(192,78,64,0.10)', border: '1px solid rgba(192,78,64,0.20)' }}
+    <div className={`px-6 md:px-10 py-10 ${inReport ? 'xl:flex xl:gap-8 xl:items-start max-w-[1440px] mx-auto' : 'max-w-5xl mx-auto'}`}>
+      {/* Main content column */}
+      <div className="flex-1 min-w-0">
+        {!inReport ? (
+          <Hero onSearch={handleSearch} userName={user?.name?.split(' ')[0]} />
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="max-w-xl mb-8"
           >
-            <AlertCircle size={22} className="text-brick" />
+            <SearchBar onSearch={handleSearch} compact initial={ticker || ''} />
+          </motion.div>
+        )}
+
+        {loading && <Skeleton />}
+
+        {error && (
+          <div className="max-w-md mx-auto card text-center animate-fadeUp">
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4"
+              style={{ background: 'rgba(192,78,64,0.10)', border: '1px solid rgba(192,78,64,0.20)' }}
+            >
+              <AlertCircle size={22} className="text-brick" />
+            </div>
+            <h3 className="font-serif text-2xl mb-2" style={{ letterSpacing: '-0.018em' }}>Couldn't load report</h3>
+            <p className="text-ink-secondary text-sm mb-6 leading-relaxed">{error}</p>
+            <button onClick={() => ticker && load(ticker)} className="btn-primary mx-auto">
+              <RotateCw size={14} /> Try again
+            </button>
           </div>
-          <h3 className="font-serif text-2xl mb-2" style={{ letterSpacing: '-0.018em' }}>Couldn't load report</h3>
-          <p className="text-ink-secondary text-sm mb-6 leading-relaxed">{error}</p>
-          <button onClick={() => ticker && load(ticker)} className="btn-primary mx-auto">
-            <RotateCw size={14} /> Try again
-          </button>
+        )}
+
+        {data && !loading && <ReportTabs data={data} />}
+      </div>
+
+      {/* Sticky right sidebar — only when a report is loaded, xl+ screens */}
+      {data && !loading && (
+        <div className="hidden xl:block w-72 flex-shrink-0">
+          <TickerSidebar data={data} />
         </div>
       )}
-
-      {data && !loading && <ReportTabs data={data} />}
     </div>
   );
 }

@@ -1,167 +1,363 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarDays, ChevronRight } from '../lib/icons';
+import { AnimatePresence, motion } from 'framer-motion';
+import { CalendarDays, ChevronRight, X } from '../lib/icons';
 import { api } from '../lib/api';
 import type { EarningsEvent } from '../types';
 import { fmtCompact } from '../lib/helpers';
 import { useWatchlist } from '../contexts/WatchlistContext';
 
-const DAYS_OPTIONS = [7, 14, 30];
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function startOfWeek(offset = 0): Date {
+  const today = new Date();
+  const dow = today.getDay(); // 0=Sun
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1) + offset * 7);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+function weekDays(monday: Date): Date[] {
+  return Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+}
+
+function isoDate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+function isToday(d: Date) {
+  const t = new Date();
+  return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
+}
+
+function isPast(d: Date) {
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  return d < t;
+}
+
+function fmtDay(d: Date) {
+  return d.toLocaleDateString('en-US', { weekday: 'short' });
+}
+
+function fmtDayNum(d: Date) {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function fmtWeekRange(monday: Date) {
+  const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+  const m = monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const f = friday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const year = monday.getFullYear();
+  return `${m} – ${f}, ${year}`;
+}
+
+const TIMING: Record<string, { label: string; icon: string; color: string }> = {
+  bmo: { label: 'Before open', icon: '🌅', color: 'var(--amber)' },
+  amc: { label: 'After close',  icon: '🌆', color: 'var(--dusty)' },
+};
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
-  const { tickers } = useWatchlist();
+  const { tickers: watchlist } = useWatchlist();
   const [events, setEvents] = useState<EarningsEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [daysAhead, setDaysAhead] = useState(14);
+  const [weekOffset, setWeekOffset] = useState(0);
   const [onlyWatchlist, setOnlyWatchlist] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data } = await api.get<{ events: EarningsEvent[] }>(`/calendar/earnings`, {
-        params: { days: daysAhead },
-      });
-      setEvents(data.events);
-    } catch {
-      setEvents([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [daysAhead]);
+  const [selected, setSelected] = useState<EarningsEvent | null>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    setLoading(true);
+    api.get<{ events: EarningsEvent[] }>('/calendar/earnings', { params: { days: 60 } })
+      .then((r) => setEvents(r.data.events))
+      .catch(() => setEvents([]))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const filtered = onlyWatchlist
-    ? events.filter((e) => tickers.includes(e.symbol))
-    : events;
+  const monday = startOfWeek(weekOffset);
+  const days = weekDays(monday);
+  const dayStrs = days.map(isoDate);
 
-  // Group by date
-  const byDate = filtered.reduce<Record<string, EarningsEvent[]>>((acc, e) => {
-    (acc[e.date] = acc[e.date] || []).push(e);
-    return acc;
-  }, {});
-  const dates = Object.keys(byDate).sort();
+  // Latest date in the data so we can cap forward navigation
+  const latestEventDate = events.length > 0 ? [...events].sort((a, b) => a.date < b.date ? 1 : -1)[0]?.date : '';
+  const canGoBack = weekOffset > 0;
+  const canGoForward = !!latestEventDate && dayStrs[0] < latestEventDate;
+
+  const base = onlyWatchlist ? events.filter((e) => watchlist.includes(e.symbol)) : events;
+  const byDay: Record<string, EarningsEvent[]> = {};
+  for (const d of dayStrs) byDay[d] = [];
+  for (const e of base) { if (byDay[e.date] !== undefined) byDay[e.date].push(e); }
+
+  const totalThisWeek = dayStrs.reduce((s, d) => s + byDay[d].length, 0);
+
+  // Scroll detail panel into view
+  useEffect(() => {
+    if (selected && detailRef.current) {
+      detailRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selected]);
+
+  const navigate = useCallback((dir: -1 | 1) => {
+    setSelected(null);
+    setWeekOffset((o) => o + dir);
+  }, []);
 
   return (
-    <div className="max-w-5xl mx-auto px-6 md:px-10 py-10">
+    <div className="max-w-6xl mx-auto px-6 md:px-10 py-10">
+      {/* Header */}
       <header className="mb-8 animate-fadeUp">
         <div className="flex items-center gap-2 mb-2">
           <CalendarDays size={14} className="text-dusty" />
           <span className="eyebrow">Calendar</span>
         </div>
-        <h1 className="font-serif text-4xl md:text-5xl tracking-tight2">Earnings ahead</h1>
-        <p className="text-ink-secondary mt-2 text-[15px]">
-          Upcoming company earnings reports, grouped by day.
-        </p>
-      </header>
-
-      <div className="flex items-center gap-3 mb-6 flex-wrap animate-fadeUp animate-delay-1">
-        <div className="inline-flex items-center bg-cream-tint rounded-full p-1">
-          {DAYS_OPTIONS.map((d) => (
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="font-serif text-4xl md:text-5xl tracking-tight2">Earnings calendar</h1>
+            <p className="text-ink-secondary mt-1 text-[15px]">
+              Upcoming earnings reports. Click any report to see details.
+            </p>
+          </div>
+          {watchlist.length > 0 && (
             <button
-              key={d}
-              onClick={() => setDaysAhead(d)}
-              className={`text-xs font-medium px-3 py-1.5 rounded-full transition ${
-                daysAhead === d ? 'bg-white text-ink shadow-pill' : 'text-ink-secondary'
+              onClick={() => setOnlyWatchlist((v) => !v)}
+              className={`text-sm font-semibold px-4 py-2 rounded-full transition flex-shrink-0 ${
+                onlyWatchlist ? 'bg-ink text-cream' : 'btn-ghost'
               }`}
             >
-              {d}d
+              ★ Watchlist only
             </button>
-          ))}
+          )}
         </div>
-        {tickers.length > 0 && (
-          <button
-            onClick={() => setOnlyWatchlist((v) => !v)}
-            className={`text-xs font-medium px-3 py-1.5 rounded-full transition ${
-              onlyWatchlist ? 'bg-ink text-cream' : 'bg-cream-tint text-ink-secondary hover:text-ink'
-            }`}
-          >
-            ★ Watchlist only
-          </button>
-        )}
+      </header>
+
+      {/* Week navigator */}
+      <div className="flex items-center justify-between mb-5 animate-fadeUp">
+        <button
+          onClick={() => navigate(-1)}
+          disabled={!canGoBack}
+          className="btn-ghost text-sm disabled:opacity-30"
+        >
+          ← Prev week
+        </button>
+        <div className="text-center">
+          <div className="font-semibold text-[15px]">{fmtWeekRange(monday)}</div>
+          {weekOffset === 0 && <div className="text-[11px] text-forest mt-0.5">This week</div>}
+          {weekOffset === 1 && <div className="text-[11px] text-ink-tertiary mt-0.5">Next week</div>}
+          {weekOffset > 1 && <div className="text-[11px] text-ink-tertiary mt-0.5">In {weekOffset} weeks</div>}
+        </div>
+        <button
+          onClick={() => navigate(1)}
+          disabled={!canGoForward}
+          className="btn-ghost text-sm disabled:opacity-30"
+        >
+          Next week →
+        </button>
       </div>
 
+      {/* Week summary pill */}
+      {!loading && totalThisWeek > 0 && (
+        <div className="mb-4 flex items-center gap-2 text-[13px] text-ink-secondary animate-fadeUp">
+          <span className="font-semibold text-ink tabular-nums">{totalThisWeek}</span> report{totalThisWeek !== 1 ? 's' : ''} this week
+          {onlyWatchlist && <span className="text-forest">· watchlist only</span>}
+        </div>
+      )}
+
       {loading ? (
-        <div className="space-y-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="card animate-fadeUp">
-              <div className="skel h-4 w-24 mb-4" />
-              <div className="skel h-5 w-1/2" />
+        <div className="grid grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="card space-y-2">
+              <div className="skel h-3 w-12 mb-3" />
+              <div className="skel h-8 w-full" />
+              <div className="skel h-8 w-4/5" />
             </div>
           ))}
         </div>
-      ) : dates.length === 0 ? (
-        <div className="card text-center animate-fadeUp animate-delay-2">
-          <CalendarDays size={28} className="mx-auto mb-3 text-ink-tertiary" />
-          <h3 className="font-serif text-2xl tracking-tight1 mb-2">Nothing scheduled</h3>
-          <p className="text-ink-secondary text-sm">
-            No earnings in the next {daysAhead} days{onlyWatchlist ? ' for your watchlist' : ''}.
-          </p>
-        </div>
       ) : (
-        <div className="space-y-5">
-          {dates.map((d, idx) => {
-            const date = new Date(d + 'T00:00:00');
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const diff = Math.round((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-            const label =
-              diff === 0
-                ? 'Today'
-                : diff === 1
-                ? 'Tomorrow'
-                : date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-            return (
-              <div key={d} className={`animate-fadeUp animate-delay-${Math.min(idx + 1, 9)}`}>
-                <div className="eyebrow mb-2 flex items-center gap-2">
-                  {label}
-                  <span className="text-ink-tertiary normal-case tracking-normal">
-                    {d}
-                  </span>
+        <>
+          {/* Calendar grid */}
+          <div className="grid grid-cols-5 gap-3">
+            {days.map((day) => {
+              const ds = isoDate(day);
+              const dayEvents = byDay[ds] || [];
+              const today = isToday(day);
+              const past = isPast(day);
+
+              return (
+                <div key={ds} className={`flex flex-col gap-1 min-h-[140px] ${past && !today ? 'opacity-50' : ''}`}>
+                  {/* Day header */}
+                  <div
+                    className={`text-center py-2 px-1 rounded-xl mb-1 ${today ? 'text-cream' : 'text-ink-secondary'}`}
+                    style={today ? { background: 'var(--forest)' } : undefined}
+                  >
+                    <div className={`text-[11px] font-semibold uppercase tracking-wider ${today ? 'text-cream/80' : 'text-ink-tertiary'}`}>
+                      {fmtDay(day)}
+                    </div>
+                    <div className={`font-serif text-xl tracking-tight1 ${today ? 'text-cream' : 'text-ink'}`}>
+                      {day.getDate()}
+                    </div>
+                    <div className={`text-[10px] ${today ? 'text-cream/70' : 'text-ink-tertiary'}`}>
+                      {day.toLocaleDateString('en-US', { month: 'short' })}
+                    </div>
+                  </div>
+
+                  {/* Event chips */}
+                  {dayEvents.length === 0 ? (
+                    <div className="flex-1 flex items-center justify-center text-[11px] text-ink-tertiary py-4">
+                      —
+                    </div>
+                  ) : (
+                    dayEvents.slice(0, 6).map((e) => {
+                      const timing = e.hour ? TIMING[e.hour] : null;
+                      const inWatchlist = watchlist.includes(e.symbol);
+                      const isSelected = selected?.symbol === e.symbol && selected?.date === e.date;
+
+                      return (
+                        <button
+                          key={e.symbol + e.date}
+                          onClick={() => setSelected(isSelected ? null : e)}
+                          className={`w-full text-left rounded-xl px-2.5 py-2 transition border ${
+                            isSelected ? 'border-forest' : 'border-transparent hover:border-hairline'
+                          }`}
+                          style={{
+                            background: isSelected
+                              ? 'color-mix(in srgb, var(--forest) 10%, var(--panel-bg))'
+                              : inWatchlist
+                              ? 'color-mix(in srgb, var(--amber) 8%, var(--panel-bg))'
+                              : 'var(--panel-bg)',
+                            boxShadow: 'var(--panel-shadow)',
+                          }}
+                        >
+                          <div className="flex items-center gap-1 justify-between">
+                            <span className="font-medium text-[12px] truncate">{e.symbol}</span>
+                            {inWatchlist && <span className="text-[10px] text-amber flex-shrink-0">★</span>}
+                          </div>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            {timing && (
+                              <span className="text-[9px]" style={{ color: timing.color }}>
+                                {timing.icon}
+                              </span>
+                            )}
+                            {e.estimate != null && (
+                              <span className="text-[10px] text-ink-tertiary tabular-nums truncate">
+                                EPS est ${e.estimate.toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                  {dayEvents.length > 6 && (
+                    <div className="text-[10px] text-ink-tertiary text-center py-1">
+                      +{dayEvents.length - 6} more
+                    </div>
+                  )}
                 </div>
-                <div className="card !p-0 overflow-hidden">
-                  {byDate[d].map((e, i, arr) => (
+              );
+            })}
+          </div>
+
+          {/* Empty week state */}
+          {totalThisWeek === 0 && (
+            <div className="card text-center py-10 mt-4">
+              <CalendarDays size={28} className="mx-auto mb-3 text-ink-tertiary" />
+              <h3 className="font-serif text-2xl mb-2">Nothing this week</h3>
+              <p className="text-ink-secondary text-sm">
+                No earnings scheduled{onlyWatchlist ? ' for your watchlist' : ''}.{' '}
+                {canGoForward && (
+                  <button onClick={() => navigate(1)} className="text-forest hover:underline">
+                    Check next week →
+                  </button>
+                )}
+              </p>
+            </div>
+          )}
+
+          {/* Detail panel */}
+          <AnimatePresence>
+            {selected && (
+              <motion.div
+                ref={detailRef}
+                key={selected.symbol + selected.date}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 12 }}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                className="mt-5 card"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
                     <Link
-                      key={e.symbol + i}
-                      to={`/dashboard?ticker=${e.symbol}`}
-                      className={`flex items-center gap-4 px-5 py-4 hover:bg-cream-tint transition ${
-                        i < arr.length - 1 ? 'border-b border-hairline' : ''
-                      }`}
+                      to={`/dashboard?ticker=${selected.symbol}`}
+                      className="font-serif text-3xl tracking-tight1 hover:text-forest transition"
                     >
-                      <span className="font-serif text-xl tracking-tight1 w-20">{e.symbol}</span>
-                      <span className="flex-1 text-sm text-ink-secondary">
-                        {e.hour === 'bmo'
-                          ? 'Before market open'
-                          : e.hour === 'amc'
-                          ? 'After market close'
-                          : 'Time TBD'}
-                        {e.quarter && e.year && (
-                          <span className="text-ink-tertiary"> · Q{e.quarter} {e.year}</span>
-                        )}
-                      </span>
-                      <span className="text-right text-sm">
-                        {e.estimate != null && (
-                          <span className="block text-ink-secondary">
-                            Est EPS <span className="font-medium text-ink tabular-nums">${e.estimate.toFixed(2)}</span>
-                          </span>
-                        )}
-                        {e.revenueEstimate != null && (
-                          <span className="block text-ink-tertiary text-xs">
-                            Rev {fmtCompact(e.revenueEstimate)}
-                          </span>
-                        )}
-                      </span>
-                      <ChevronRight size={16} className="text-ink-tertiary" />
+                      {selected.symbol}
                     </Link>
-                  ))}
+                    {selected.quarter && selected.year && (
+                      <span className="pill" style={{ background: 'var(--cream-tint)', color: 'var(--ink-secondary)' }}>
+                        Q{selected.quarter} {selected.year}
+                      </span>
+                    )}
+                    {watchlist.includes(selected.symbol) && (
+                      <span className="pill" style={{ background: 'color-mix(in srgb, var(--amber) 15%, var(--cream-tint))', color: 'var(--amber)' }}>
+                        ★ Watchlist
+                      </span>
+                    )}
+                  </div>
+                  <button onClick={() => setSelected(null)} className="text-ink-tertiary hover:text-ink transition p-1">
+                    <X size={16} />
+                  </button>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <DetailTile
+                    label="Date"
+                    value={new Date(selected.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                  />
+                  <DetailTile
+                    label="Timing"
+                    value={selected.hour ? (TIMING[selected.hour]?.label ?? 'TBD') : 'TBD'}
+                    accent={selected.hour ? TIMING[selected.hour]?.color : undefined}
+                    prefix={selected.hour ? TIMING[selected.hour]?.icon + ' ' : ''}
+                  />
+                  {selected.estimate != null && (
+                    <DetailTile label="EPS estimate" value={`$${selected.estimate.toFixed(2)}`} accent="var(--forest)" />
+                  )}
+                  {selected.revenueEstimate != null && (
+                    <DetailTile label="Revenue est." value={fmtCompact(selected.revenueEstimate)} />
+                  )}
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link to={`/dashboard?ticker=${selected.symbol}`} className="btn-forest text-sm">
+                    Open research <ChevronRight size={13} />
+                  </Link>
+                  <Link to={`/simulator`} className="btn-ghost text-sm">
+                    Trade in simulator
+                  </Link>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
       )}
+    </div>
+  );
+}
+
+function DetailTile({ label, value, accent, prefix = '' }: { label: string; value: string; accent?: string; prefix?: string }) {
+  return (
+    <div>
+      <div className="eyebrow mb-1">{label}</div>
+      <div className="font-medium text-[14px]" style={accent ? { color: accent } : undefined}>
+        {prefix}{value}
+      </div>
     </div>
   );
 }

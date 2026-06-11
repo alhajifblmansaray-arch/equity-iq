@@ -30,9 +30,10 @@ import {
   Trophy,
   X,
 } from '../lib/icons';
-import { research, simulator as simApi } from '../lib/api';
+import { api, research, simulator as simApi } from '../lib/api';
 import type {
   CoachAdvice,
+  EarningsEvent,
   LeaderboardTrade,
   NormalizedBar,
   QuickScan,
@@ -325,8 +326,78 @@ function PortfolioTab({
     <div className="space-y-4">
       <EquityChart snapshots={snapshots} />
       <RiskMetrics snapshots={snapshots} />
-      {portfolio && portfolio.holdings.length > 0 && <SectorAllocation portfolio={portfolio} />}
+      {portfolio && portfolio.holdings.length > 0 && (
+        <>
+          <EarningsWarnings portfolio={portfolio} />
+          <SectorAllocation portfolio={portfolio} />
+        </>
+      )}
       <HoldingsTab portfolio={portfolio} onRefresh={onRefresh} />
+    </div>
+  );
+}
+
+// ─── Earnings warnings ────────────────────────────────────────────────────────
+
+function EarningsWarnings({ portfolio }: { portfolio: SimPortfolio }) {
+  const [warnings, setWarnings] = useState<EarningsEvent[]>([]);
+
+  useEffect(() => {
+    const heldTickers = new Set(portfolio.holdings.map((h) => h.ticker));
+    if (heldTickers.size === 0) return;
+
+    api.get<{ events: EarningsEvent[] }>('/calendar/earnings', { params: { days: 7 } })
+      .then((r) => {
+        const hits = r.data.events.filter((e) => heldTickers.has(e.symbol));
+        setWarnings(hits);
+      })
+      .catch(() => {});
+  }, [portfolio.holdings.map((h) => h.ticker).join(',')]);
+
+  if (warnings.length === 0) return null;
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+
+  return (
+    <div className="card" style={{ borderColor: 'color-mix(in srgb, var(--amber) 40%, var(--panel-border))' }}>
+      <div className="flex items-start gap-3">
+        <div className="text-xl flex-shrink-0 mt-0.5">⚠️</div>
+        <div className="flex-1 min-w-0">
+          <div className="eyebrow text-amber mb-2">Earnings risk in your portfolio</div>
+          <div className="space-y-2">
+            {warnings.map((e) => {
+              const earningsDate = new Date(e.date + 'T00:00:00');
+              const diffDays = Math.round((earningsDate.getTime() - today.getTime()) / 86_400_000);
+              const when = diffDays === 0 ? 'today' : diffDays === 1 ? 'tomorrow' : `in ${diffDays} days`;
+              const timing = e.hour === 'bmo' ? '🌅 before open' : e.hour === 'amc' ? '🌆 after close' : '';
+
+              return (
+                <div key={e.symbol + e.date} className="flex items-center gap-3 text-[13px]">
+                  <Link
+                    to={`/dashboard?ticker=${e.symbol}`}
+                    className="font-serif text-lg tracking-tight1 hover:text-forest transition flex-shrink-0"
+                  >
+                    {e.symbol}
+                  </Link>
+                  <div className="text-ink-secondary flex-1 min-w-0">
+                    Reports <strong className="text-ink">{when}</strong>
+                    {timing && <span className="text-ink-tertiary"> · {timing}</span>}
+                    {e.estimate != null && (
+                      <span className="text-ink-tertiary"> · EPS est. ${e.estimate.toFixed(2)}</span>
+                    )}
+                  </div>
+                  <Link to="/calendar" className="text-[11px] text-dusty hover:underline flex-shrink-0">
+                    View calendar
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-ink-tertiary mt-3">
+            Earnings can cause large price swings. Consider whether your position size accounts for this risk.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
