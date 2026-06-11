@@ -5,7 +5,7 @@ import { finnhubEarnings, finnhubMarketEarnings } from '../services/finnhub';
 const router = Router();
 
 router.get('/earnings', requireAuth, async (req, res, next) => {
-  const days = Math.min(60, Math.max(1, Number(req.query.days) || 14));
+  const days = Math.min(90, Math.max(1, Number(req.query.days) || 14));
   try {
     const events = await finnhubMarketEarnings(days);
     res.json({ events: events || [] });

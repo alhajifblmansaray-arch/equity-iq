@@ -74,8 +74,30 @@ export default function CalendarPage() {
 
   useEffect(() => {
     setLoading(true);
-    api.get<{ events: EarningsEvent[] }>('/calendar/earnings', { params: { days: 60 } })
-      .then((r) => setEvents(r.data.events))
+    api.get<{ events: EarningsEvent[] }>('/calendar/earnings', { params: { days: 90 } })
+      .then((r) => {
+        const evts = r.data.events;
+        setEvents(evts);
+        // Auto-jump to the first week that has events if current week is empty
+        if (evts.length > 0) {
+          const firstEvent = [...evts].sort((a, b) => a.date.localeCompare(b.date))[0];
+          const firstEventDate = new Date(firstEvent.date + 'T00:00:00');
+          // Find how many weeks ahead the first event is
+          const todayMonday = startOfWeek(0);
+          const diffDays = Math.floor((firstEventDate.getTime() - todayMonday.getTime()) / (1000 * 60 * 60 * 24));
+          const weekDiff = Math.max(0, Math.floor(diffDays / 7));
+          // Only auto-jump if current week is before the first event
+          const thisWeekEnd = new Date(todayMonday);
+          thisWeekEnd.setDate(todayMonday.getDate() + 4);
+          const currentWeekHasEvents = evts.some((e) => {
+            const d = e.date;
+            return d >= isoDate(todayMonday) && d <= isoDate(thisWeekEnd);
+          });
+          if (!currentWeekHasEvents && weekDiff > 0) {
+            setWeekOffset(weekDiff);
+          }
+        }
+      })
       .catch(() => setEvents([]))
       .finally(() => setLoading(false));
   }, []);
