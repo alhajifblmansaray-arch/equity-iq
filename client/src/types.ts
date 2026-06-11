@@ -79,6 +79,7 @@ export interface SimHolding {
   costBasis: number;
   pnl: number | null;
   pnlPct: number | null;
+  isShort: boolean;
 }
 
 export interface SimPortfolio {
@@ -102,14 +103,54 @@ export interface SimSnapshot {
 export interface SimTrade {
   _id: string;
   ticker: string;
-  action: 'buy' | 'sell';
+  action: 'buy' | 'sell' | 'short' | 'cover';
   shares: number;
   price: number;
   total: number;
   pnl: number | null;
   pnlPct: number | null;
   aiDebrief: string | null;
+  note: string | null;
   createdAt: string;
+}
+
+export type LimitOrderAction = 'buy' | 'sell';
+export type LimitOrderType = 'limit' | 'stop';
+export type LimitOrderStatus = 'pending' | 'filled' | 'cancelled';
+
+export interface SimLimitOrder {
+  _id: string;
+  ticker: string;
+  action: LimitOrderAction;
+  orderType: LimitOrderType;
+  shares: number;
+  limitPrice: number;
+  status: LimitOrderStatus;
+  filledPrice?: number;
+  filledAt?: string;
+  note?: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface LeaderboardTrade {
+  _id: string;
+  ticker: string;
+  action: 'sell' | 'cover';
+  shares: number;
+  price: number;
+  pnl: number | null;
+  pnlPct: number | null;
+  createdAt: string;
+  userName: string;
+  userAvatarUrl: string | null;
+}
+
+export interface CoachAdvice {
+  strengths: string[];
+  improvements: string[];
+  observation: string;
+  action: string;
 }
 
 /* ── Weekly Challenge ─────────────────────────────────────────────────────── */

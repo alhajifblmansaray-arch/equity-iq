@@ -19,7 +19,7 @@ export interface ISimulatorPortfolio extends Document {
 const HoldingSchema = new Schema<IHolding>(
   {
     ticker: { type: String, required: true, uppercase: true },
-    shares: { type: Number, required: true, min: 0 },
+    shares: { type: Number, required: true }, // negative = short position
     avgCost: { type: Number, required: true, min: 0 },
   },
   { _id: false }

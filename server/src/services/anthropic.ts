@@ -663,3 +663,117 @@ export async function generateForecast(
   forecastCache.set(cacheKey, { value: parsed, expires: Date.now() + ttl });
   return parsed;
 }
+
+// ---------------------------------------------------------------------------
+// Portfolio coach — analyse a paper trader's portfolio and give personalised
+// educational feedback.
+// ---------------------------------------------------------------------------
+
+export interface CoachResult {
+  strengths: string[];
+  improvements: string[];
+  observation: string;
+  action: string;
+}
+
+interface HoldingSummary {
+  ticker: string;
+  shares: number;
+  avgCost: number;
+  currentPrice: number | null;
+  pnlPct: number | null;
+  isShort: boolean;
+}
+
+interface TradeSummary {
+  action: string;
+  ticker: string;
+  shares: number;
+  price: number;
+  pnlPct: number | null;
+}
+
+export async function generatePortfolioCoach(
+  totalValue: number,
+  cash: number,
+  holdings: HoldingSummary[],
+  recentTrades: TradeSummary[],
+  winRate: string
+): Promise<CoachResult> {
+  const c = getClient();
+  if (!c) {
+    return {
+      strengths: ['Practice makes perfect — you\'re here and trading!'],
+      improvements: ['Enable the AI coach by adding an ANTHROPIC_API_KEY to the server.'],
+      observation: 'The coach needs an Anthropic API key to analyse your portfolio.',
+      action: 'Add ANTHROPIC_API_KEY to server/.env to unlock personalised coaching.',
+    };
+  }
+
+  const holdingLines = holdings.length > 0
+    ? holdings.map((h) => {
+        const type = h.isShort ? 'SHORT' : 'LONG';
+        const pnl = h.pnlPct != null ? `${h.pnlPct >= 0 ? '+' : ''}${h.pnlPct.toFixed(1)}%` : 'price unavailable';
+        return `  • ${type} ${Math.abs(h.shares)} ${h.ticker} @ avg $${h.avgCost.toFixed(2)} → current ${h.currentPrice != null ? '$' + h.currentPrice.toFixed(2) : '?'} (${pnl})`;
+      }).join('\n')
+    : '  (no holdings)';
+
+  const tradeLines = recentTrades.length > 0
+    ? recentTrades.map((t) => {
+        const pnl = t.pnlPct != null ? ` P&L ${t.pnlPct >= 0 ? '+' : ''}${t.pnlPct.toFixed(1)}%` : '';
+        return `  • ${t.action.toUpperCase()} ${t.shares} ${t.ticker} @ $${t.price.toFixed(2)}${pnl}`;
+      }).join('\n')
+    : '  (no trades yet)';
+
+  const prompt = `You are an educational paper-trading coach reviewing a student's $10,000 simulation portfolio.
+
+Portfolio snapshot:
+  Total value: $${totalValue.toFixed(2)} (started $10,000, ${totalValue >= 10000 ? '+' : ''}${(((totalValue - 10000) / 10000) * 100).toFixed(1)}%)
+  Cash: $${cash.toFixed(2)} (${((cash / totalValue) * 100).toFixed(0)}% of portfolio)
+  Win rate on closed trades: ${winRate}
+
+Current positions:
+${holdingLines}
+
+Recent trades (newest first):
+${tradeLines}
+
+Respond with ONLY valid JSON in this exact shape (no markdown fences, no extra keys):
+{
+  "strengths": ["one sentence", "one sentence"],
+  "improvements": ["specific advice with a concrete next step", "specific advice with a concrete next step"],
+  "observation": "One paragraph about diversification, position sizing, or risk balance.",
+  "action": "One specific thing they should do or consider doing TODAY."
+}
+
+Rules:
+- Each strength and improvement: max 2 sentences, plain English, beginner-friendly.
+- Observation: 2-3 sentences max.
+- Action: 1 sentence, concrete and actionable (name a specific ticker analysis or strategy if you can).
+- Do not mention being an AI. Do not say "I notice" — state observations directly.`;
+
+  const response = await c.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 600,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const raw = response.content
+    .filter((b) => b.type === 'text')
+    .map((b) => (b as { type: 'text'; text: string }).text)
+    .join('');
+
+  try {
+    const start = raw.indexOf('{');
+    const end = raw.lastIndexOf('}');
+    if (start === -1 || end === -1) throw new Error('no JSON');
+    return JSON.parse(raw.slice(start, end + 1)) as CoachResult;
+  } catch {
+    return {
+      strengths: ['You are actively practicing — that is the most important step.'],
+      improvements: ['Review your recent trades and note why each one worked or did not.'],
+      observation: 'Your portfolio is taking shape. Focus on position sizing and never risk more than 5-10% on a single name.',
+      action: 'Pick one current holding and research it as if you were buying it today — does the original thesis still hold?',
+    };
+  }
+}

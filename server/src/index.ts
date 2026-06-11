@@ -20,6 +20,7 @@ import challengeRoutes from './routes/challenge';
 import profileRoutes from './routes/profile';
 import { startAlertChecker } from './services/alertChecker';
 import { resolveDueForecasts } from './services/forecastTracker';
+import { startLimitOrderChecker } from './services/limitOrderChecker';
 
 const PORT = Number(process.env.PORT) || 3001;
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
@@ -94,6 +95,7 @@ async function main(): Promise<void> {
     console.log(`✓ EquityIQ API listening on http://localhost:${PORT}`);
     console.log(`  → client origin: ${CLIENT_ORIGIN}`);
     startAlertChecker();
+    startLimitOrderChecker();
     // Grade matured forecasts every 10 min so the model gets a track record to learn from.
     const FORECAST_RESOLVE_INTERVAL = 10 * 60 * 1000;
     setTimeout(() => {

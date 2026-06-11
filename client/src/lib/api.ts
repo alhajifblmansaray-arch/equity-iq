@@ -64,7 +64,7 @@ export const research = {
         { params: { days } }
       )
       .then((r) => r.data),
-  intraday: (ticker: string, interval: IntradayInterval = '5min', outputsize = 200) =>
+  intraday: (ticker: string, interval: IntradayInterval | '1day' = '5min', outputsize = 200) =>
     api
       .get<IntradayResponse>(`/research/${encodeURIComponent(ticker.toUpperCase())}/intraday`, {
         params: { interval, outputsize },
@@ -139,13 +139,25 @@ export const newsApi = {
 
 export const simulator = {
   get: () => api.get<SimPortfolio>('/simulator').then((r) => r.data),
-  buy: (ticker: string, shares: number) =>
-    api.post('/simulator/buy', { ticker, shares }).then((r) => r.data),
-  sell: (ticker: string, shares: number) =>
-    api.post('/simulator/sell', { ticker, shares }).then((r) => r.data),
-  trades: () => api.get<{ trades: SimTrade[] }>('/simulator/trades').then((r) => r.data.trades),
+  buy: (ticker: string, shares: number, note?: string) =>
+    api.post('/simulator/buy', { ticker, shares, note }).then((r) => r.data),
+  sell: (ticker: string, shares: number, note?: string) =>
+    api.post('/simulator/sell', { ticker, shares, note }).then((r) => r.data),
+  short: (ticker: string, shares: number, note?: string) =>
+    api.post('/simulator/short', { ticker, shares, note }).then((r) => r.data),
+  cover: (ticker: string, shares: number, note?: string) =>
+    api.post('/simulator/cover', { ticker, shares, note }).then((r) => r.data),
+  trades: () => api.get<{ trades: import('../types').SimTrade[] }>('/simulator/trades').then((r) => r.data.trades),
   reset: () => api.post('/simulator/reset').then((r) => r.data),
   snapshots: () => api.get<{ snapshots: SimSnapshot[] }>('/simulator/snapshots').then((r) => r.data.snapshots),
+  sectors: () => api.get<{ sectors: Record<string, string> }>('/simulator/sectors').then((r) => r.data.sectors),
+  limits: () => api.get<{ orders: import('../types').SimLimitOrder[] }>('/simulator/limits').then((r) => r.data.orders),
+  createLimit: (payload: { ticker: string; action: 'buy' | 'sell'; orderType: 'limit' | 'stop'; shares: number; limitPrice: number; note?: string }) =>
+    api.post<{ ok: boolean; order: import('../types').SimLimitOrder }>('/simulator/limits', payload).then((r) => r.data),
+  cancelLimit: (id: string) => api.delete(`/simulator/limits/${id}`).then(() => undefined),
+  leaderboard: (limit = 20) =>
+    api.get<{ trades: import('../types').LeaderboardTrade[] }>('/simulator/leaderboard', { params: { limit } }).then((r) => r.data.trades),
+  coach: () => api.post<{ advice: import('../types').CoachAdvice }>('/simulator/coach').then((r) => r.data.advice),
 };
 
 export const learn = {
