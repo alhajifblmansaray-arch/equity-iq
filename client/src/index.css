@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Design tokens ─────────────────────────────────────────────────────── */
+
 :root,
 :root[data-theme='light'] {
   --cream: #F5F1EB;
@@ -15,40 +17,71 @@
   --brick: #C04E40;
   --amber: #B8853A;
   --dusty: #3D6E8E;
-  --skel-mid: #f7f3ec;
-  /* Canvas sits a shade deeper than --cream so white glass panes have contrast. */
-  --canvas: #EAE3D6;
+  --skel-mid: #f0ebe0;
+  --canvas: #E8E1D3;
 
-  /* Glass system — light. Needs more contrast than dark mode or it washes out. */
-  --glass-bg: rgba(255, 255, 255, 0.34);
-  /* Diagonal sheen: a touch less milky so the card stays see-through. */
-  --glass-sheen: linear-gradient(135deg, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0.08) 45%, rgba(255,255,255,0.20) 100%);
-  --glass-sidebar-bg: rgba(250, 247, 242, 0.38);
-  --glass-sidebar-sheen: linear-gradient(180deg, rgba(255,255,255,0.50) 0%, rgba(255,255,255,0.08) 26%, rgba(255,255,255,0.0) 60%, rgba(255,255,255,0.18) 100%);
-  --glass-border: rgba(255, 255, 255, 0.95);
-  /* Deeper, softer drop shadow so the pane clearly floats off the cream bg. */
-  --glass-shadow: 0 14px 44px rgba(40,30,15,0.16), 0 4px 12px rgba(40,30,15,0.08), inset 0 1px 0 rgba(255,255,255,1), inset 0 0 0 1px rgba(255,255,255,0.30);
+  /* Glass */
+  --glass-bg: rgba(255, 255, 255, 0.42);
+  --glass-sheen: linear-gradient(
+    140deg,
+    rgba(255,255,255,0.60) 0%,
+    rgba(255,255,255,0.10) 38%,
+    rgba(255,255,255,0.26) 100%
+  );
+  --glass-sidebar-bg: rgba(248, 245, 240, 0.46);
+  --glass-sidebar-sheen: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.58) 0%,
+    rgba(255,255,255,0.10) 28%,
+    rgba(255,255,255,0.00) 62%,
+    rgba(255,255,255,0.22) 100%
+  );
+  --glass-border: rgba(255, 255, 255, 0.98);
+  /* Layered, dimensional shadow — far more depth than before */
+  --glass-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.50),
+    0 1px 2px  rgba(40, 28, 12, 0.04),
+    0 4px 12px rgba(40, 28, 12, 0.06),
+    0 16px 40px rgba(40, 28, 12, 0.10),
+    0 40px 80px rgba(40, 28, 12, 0.12),
+    inset 0 1.5px 0 rgba(255, 255, 255, 1.0),
+    inset 0 -1px 0 rgba(40, 28, 12, 0.04);
 
-  /* Orbs — more visible in light mode to give the frost something to catch. */
-  --orb-1: rgba(46, 93, 67, 0.26);
-  --orb-2: rgba(184, 133, 58, 0.24);
-  --orb-3: rgba(61, 110, 142, 0.20);
-  --orb-4: rgba(192, 78, 64, 0.15);
+  /* Orbs */
+  --orb-1: rgba(46, 93, 67, 0.30);
+  --orb-2: rgba(184, 133, 58, 0.26);
+  --orb-3: rgba(61, 110, 142, 0.22);
+  --orb-4: rgba(192, 78, 64, 0.17);
 
-  /* Sidebar nav / watchlist chips */
-  --glass-item-active: rgba(255, 255, 255, 0.62);
-  --glass-item-hover: rgba(255, 255, 255, 0.38);
-  --glass-item-rim: rgba(255, 255, 255, 0.85);
+  /* Sidebar chips */
+  --glass-item-active: rgba(255, 255, 255, 0.72);
+  --glass-item-hover: rgba(255, 255, 255, 0.42);
+  --glass-item-rim: rgba(255, 255, 255, 0.92);
+
+  /* Data panel (inner surfaces inside cards) */
+  --panel-bg: rgba(255, 255, 255, 0.72);
+  --panel-border: rgba(0, 0, 0, 0.06);
+  --panel-shadow: inset 0 1px 3px rgba(0,0,0,0.03), 0 1px 2px rgba(0,0,0,0.03);
+
+  /* Buttons */
+  --btn-ink-top: #303030;
+  --btn-ink-bot: #111111;
+  --btn-ink-shine: rgba(255,255,255,0.16);
+  --btn-ink-press: rgba(0,0,0,0.16);
+  --btn-ink-glow: rgba(0,0,0,0.16);
+  --btn-forest-top: #3C7A5A;
+  --btn-forest-bot: #2A5440;
+  --btn-forest-glow: rgba(46,93,67,0.28);
 }
 
 :root[data-theme='dark'] {
   --cream: #14110D;
-  --cream-tint: #221E18;
-  --surface: #1B1814;
-  --hairline: #322D26;
+  --cream-tint: #231F19;
+  --surface: #1C1915;
+  --hairline: #342E26;
   --ink: #F2EEE6;
   --ink-secondary: #B4AFA6;
-  --ink-tertiary: #7C7770;
+  --ink-tertiary: #7E7870;
   --forest: #6FB89A;
   --brick: #E88B7E;
   --amber: #DDAE63;
@@ -56,25 +89,55 @@
   --skel-mid: #2E2920;
   --canvas: #14110D;
 
-  /* Glass system — dark */
-  --glass-bg: rgba(27, 24, 20, 0.34);
-  --glass-sheen: linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.02) 42%, rgba(255,255,255,0.05) 100%);
-  --glass-sidebar-bg: rgba(20, 17, 13, 0.42);
-  --glass-sidebar-sheen: linear-gradient(180deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.01) 26%, rgba(255,255,255,0.0) 60%, rgba(255,255,255,0.04) 100%);
-  --glass-border: rgba(255, 255, 255, 0.18);
-  --glass-shadow: 0 10px 36px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.16), inset 0 0 0 1px rgba(255,255,255,0.05);
+  --glass-bg: rgba(26, 22, 17, 0.42);
+  --glass-sheen: linear-gradient(
+    140deg,
+    rgba(255,255,255,0.13) 0%,
+    rgba(255,255,255,0.02) 40%,
+    rgba(255,255,255,0.07) 100%
+  );
+  --glass-sidebar-bg: rgba(18, 15, 11, 0.50);
+  --glass-sidebar-sheen: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.11) 0%,
+    rgba(255,255,255,0.01) 28%,
+    rgba(255,255,255,0.00) 62%,
+    rgba(255,255,255,0.05) 100%
+  );
+  --glass-border: rgba(255, 255, 255, 0.22);
+  --glass-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.10),
+    0 1px 2px  rgba(0, 0, 0, 0.20),
+    0 4px 12px rgba(0, 0, 0, 0.40),
+    0 16px 40px rgba(0, 0, 0, 0.50),
+    0 40px 80px rgba(0, 0, 0, 0.55),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.20),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.25);
 
-  /* Orbs — subtle hint of colour behind the frost */
   --orb-1: rgba(111, 184, 154, 0.18);
   --orb-2: rgba(221, 174, 99, 0.15);
   --orb-3: rgba(135, 173, 204, 0.13);
   --orb-4: rgba(232, 139, 126, 0.11);
 
-  /* Sidebar nav / watchlist chips */
-  --glass-item-active: rgba(255, 255, 255, 0.13);
-  --glass-item-hover: rgba(255, 255, 255, 0.06);
-  --glass-item-rim: rgba(255, 255, 255, 0.16);
+  --glass-item-active: rgba(255, 255, 255, 0.15);
+  --glass-item-hover: rgba(255, 255, 255, 0.07);
+  --glass-item-rim: rgba(255, 255, 255, 0.20);
+
+  --panel-bg: rgba(255, 255, 255, 0.03);
+  --panel-border: rgba(255, 255, 255, 0.07);
+  --panel-shadow: inset 0 1px 3px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.10);
+
+  --btn-ink-top: #DED9D0;
+  --btn-ink-bot: #F2EEE6;
+  --btn-ink-shine: rgba(255,255,255,0.18);
+  --btn-ink-press: rgba(0,0,0,0.12);
+  --btn-ink-glow: rgba(200,195,185,0.20);
+  --btn-forest-top: #5BA882;
+  --btn-forest-bot: #6FB89A;
+  --btn-forest-glow: rgba(111,184,154,0.28);
 }
+
+/* ─── Base ────────────────────────────────────────────────────────────────── */
 
 * {
   -webkit-font-smoothing: antialiased;
@@ -82,116 +145,244 @@
 }
 
 /*
-  Orbs live on the <html> element — this is the actual canvas layer.
-  backdrop-filter on cards reads through body/root (both transparent) to
-  reach html's background, blurring the orbs = iOS frosted-glass effect.
-  background-attachment: fixed keeps orbs anchored to the viewport as you scroll.
-
-  Positions are spread across the WHOLE viewport (incl. the centre, where the
-  content column lives) so cards actually have colour behind them to frost.
+  Orbs live on <html>. body + #root are transparent so
+  backdrop-filter on cards blurs the orbs — iOS frost effect.
 */
 html {
   height: 100%;
   background-color: var(--canvas);
   background-image:
-    radial-gradient(ellipse 800px 700px at 75% 8%,   var(--orb-1), transparent 60%),
-    radial-gradient(ellipse 750px 750px at 4% 78%,   var(--orb-2), transparent 60%),
-    radial-gradient(ellipse 700px 650px at 92% 65%,  var(--orb-3), transparent 60%),
-    radial-gradient(ellipse 700px 650px at 6% 18%,   var(--orb-4), transparent 60%);
+    radial-gradient(ellipse 900px 820px at 80%  5%,  var(--orb-1), transparent 56%),
+    radial-gradient(ellipse 820px 820px at  2% 85%,  var(--orb-2), transparent 56%),
+    radial-gradient(ellipse 780px 720px at 96% 70%,  var(--orb-3), transparent 56%),
+    radial-gradient(ellipse 760px 720px at  3% 14%,  var(--orb-4), transparent 56%);
   background-attachment: fixed;
 }
 
 body, #root {
   height: 100%;
-  background: transparent; /* let html's orb layer show through */
+  background: transparent;
 }
 
 body {
   color: var(--ink);
   font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.012em;
+  line-height: 1.5;
 }
 
+/* ─── Components ─────────────────────────────────────────────────────────── */
+
 @layer components {
+
+  /* ── Glass card ─────────────────────────────────────── */
   .card {
-    /* Two layers: a diagonal sheen on top, the frost tint underneath. */
     background: var(--glass-sheen), var(--glass-bg);
-    backdrop-filter: blur(28px) saturate(170%);
-    -webkit-backdrop-filter: blur(28px) saturate(170%);
+    backdrop-filter: blur(32px) saturate(185%);
+    -webkit-backdrop-filter: blur(32px) saturate(185%);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
     @apply rounded-3xl p-6 md:p-8;
   }
+
+  /* ── Inner data panel (surfaces nested inside a card) ─ */
+  .data-panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    box-shadow: var(--panel-shadow);
+    backdrop-filter: blur(8px) saturate(140%);
+    -webkit-backdrop-filter: blur(8px) saturate(140%);
+    @apply rounded-2xl;
+  }
+
+  /* ── Typography ─────────────────────────────────────── */
   .eyebrow {
-    @apply text-[12px] uppercase tracking-eyebrow text-ink-tertiary font-medium;
+    @apply text-[11px] font-semibold text-ink-tertiary uppercase;
+    letter-spacing: 0.10em;
   }
   .section-title {
-    @apply font-serif text-3xl md:text-4xl tracking-tight1 text-ink;
+    @apply font-serif text-3xl md:text-4xl text-ink;
+    letter-spacing: -0.018em;
+    line-height: 1.12;
   }
+
+  /* ── Pills ───────────────────────────────────────────── */
   .pill {
     @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium;
   }
-  .pill-forest { background: rgba(46,93,67,0.12); color: var(--forest); }
-  .pill-brick  { background: rgba(192,78,64,0.12); color: var(--brick); }
-  .pill-amber  { background: rgba(184,133,58,0.14); color: var(--amber); }
-  .pill-dusty  { background: rgba(61,110,142,0.12); color: var(--dusty); }
-  .pill-mute   { background: rgba(154,154,154,0.14); color: var(--ink-secondary); }
+  .pill-forest {
+    background: rgba(46, 93, 67, 0.11);
+    color: var(--forest);
+    border: 1px solid rgba(46, 93, 67, 0.22);
+  }
+  .pill-brick {
+    background: rgba(192, 78, 64, 0.11);
+    color: var(--brick);
+    border: 1px solid rgba(192, 78, 64, 0.22);
+  }
+  .pill-amber {
+    background: rgba(184, 133, 58, 0.12);
+    color: var(--amber);
+    border: 1px solid rgba(184, 133, 58, 0.24);
+  }
+  .pill-dusty {
+    background: rgba(61, 110, 142, 0.11);
+    color: var(--dusty);
+    border: 1px solid rgba(61, 110, 142, 0.22);
+  }
+  .pill-mute {
+    background: rgba(154, 154, 154, 0.09);
+    color: var(--ink-secondary);
+    border: 1px solid rgba(154, 154, 154, 0.18);
+  }
 
+  /* ── Buttons (crafted, not generic) ─────────────────── */
+
+  /* Primary — dimensional ink button */
   .btn-primary {
-    background: var(--ink);
+    background: linear-gradient(180deg, var(--btn-ink-top) 0%, var(--btn-ink-bot) 100%);
     color: var(--cream);
-    @apply inline-flex items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium transition active:scale-[0.98];
+    box-shadow:
+      inset 0 1.5px 0 var(--btn-ink-shine),
+      inset 0 -1px 0 var(--btn-ink-press),
+      0 1px 2px rgba(0,0,0,0.12),
+      0 3px 10px var(--btn-ink-glow);
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold;
+    letter-spacing: -0.014em;
+    transition: box-shadow 120ms ease, transform 100ms ease, opacity 150ms ease;
   }
-  .btn-primary:hover { opacity: 0.92; }
-  .btn-ghost {
-    border: 1px solid var(--hairline);
-    color: var(--ink);
-    @apply inline-flex items-center justify-center rounded-full bg-transparent px-5 py-2.5 text-sm font-medium transition;
+  .btn-primary:hover {
+    box-shadow:
+      inset 0 1.5px 0 var(--btn-ink-shine),
+      inset 0 -1px 0 var(--btn-ink-press),
+      0 2px 4px rgba(0,0,0,0.16),
+      0 8px 20px var(--btn-ink-glow);
+    transform: translateY(-1px);
   }
-  .btn-ghost:hover { background: var(--cream-tint); }
+  .btn-primary:active {
+    transform: translateY(0px);
+    opacity: 0.90;
+  }
+  .btn-primary:disabled {
+    opacity: 0.46;
+    pointer-events: none;
+  }
 
+  /* Forest — branded CTA */
+  .btn-forest {
+    background: linear-gradient(180deg, var(--btn-forest-top) 0%, var(--btn-forest-bot) 100%);
+    color: #fff;
+    box-shadow:
+      inset 0 1.5px 0 rgba(255,255,255,0.22),
+      inset 0 -1px 0 rgba(0,0,0,0.18),
+      0 1px 2px rgba(46,93,67,0.20),
+      0 4px 14px var(--btn-forest-glow);
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold;
+    letter-spacing: -0.014em;
+    transition: box-shadow 120ms ease, transform 100ms ease;
+  }
+  .btn-forest:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1.5px 0 rgba(255,255,255,0.22),
+      inset 0 -1px 0 rgba(0,0,0,0.18),
+      0 2px 4px rgba(46,93,67,0.26),
+      0 8px 24px var(--btn-forest-glow);
+  }
+  .btn-forest:active { transform: translateY(0); opacity: 0.92; }
+
+  /* Ghost — glass morphism button */
+  .btn-ghost {
+    background: var(--glass-bg);
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    border: 1px solid var(--glass-border);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.24),
+      0 1px 3px rgba(0,0,0,0.08);
+    color: var(--ink);
+    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-medium;
+    letter-spacing: -0.014em;
+    transition: box-shadow 120ms ease, transform 100ms ease;
+  }
+  .btn-ghost:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.34),
+      0 2px 8px rgba(0,0,0,0.10);
+  }
+  .btn-ghost:active { transform: translateY(0); }
+
+  /* ── Dividers ────────────────────────────────────────── */
   .hairline-divider {
     height: 1px;
     background: var(--hairline);
   }
 
-  /* Sidebar nav + watchlist rows — frosted chips that sit on the glass sidebar */
+  /* ── Sidebar glass chips ─────────────────────────────── */
   .glass-chip {
     background: var(--glass-item-active);
     border: 1px solid var(--glass-item-rim);
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05), inset 0 1px 0 rgba(255,255,255,0.55);
+    box-shadow:
+      0 2px 10px rgba(0,0,0,0.05),
+      inset 0 1px 0 rgba(255,255,255,0.58);
     backdrop-filter: blur(12px) saturate(160%);
     -webkit-backdrop-filter: blur(12px) saturate(160%);
   }
   .glass-chip-hover {
     border: 1px solid transparent;
-    transition: background 150ms ease, color 150ms ease;
+    transition: background 140ms ease, color 140ms ease;
   }
   .glass-chip-hover:hover {
     background: var(--glass-item-hover);
   }
 
+  /* ── Skeleton ────────────────────────────────────────── */
   .skel {
-    background: linear-gradient(90deg, var(--cream-tint) 0%, var(--skel-mid) 50%, var(--cream-tint) 100%);
+    background: linear-gradient(
+      90deg,
+      var(--cream-tint) 0%,
+      var(--skel-mid) 50%,
+      var(--cream-tint) 100%
+    );
     background-size: 800px 100%;
     @apply animate-shimmer rounded-2xl;
   }
 }
 
-/* Bg utilities resolve to CSS vars so themes swap them */
-.bg-cream { background-color: var(--cream) !important; }
-.bg-cream-tint { background-color: var(--cream-tint) !important; }
-.bg-white { background-color: var(--surface) !important; }
-.text-ink { color: var(--ink); }
-.text-ink-secondary { color: var(--ink-secondary); }
-.text-ink-tertiary { color: var(--ink-tertiary); }
-.text-cream { color: var(--cream); }
-.border-hairline { border-color: var(--hairline) !important; }
-.bg-ink { background-color: var(--ink) !important; }
-.text-forest { color: var(--forest); }
-.bg-forest { background-color: var(--forest) !important; }
+/* ─── Utility overrides ──────────────────────────────────────────────────── */
 
-/* Numeric inputs: hide browser spinners */
+.bg-cream        { background-color: var(--cream) !important; }
+.bg-cream-tint   { background-color: var(--cream-tint) !important; }
+.bg-white        { background-color: var(--surface) !important; }
+.bg-ink          { background-color: var(--ink) !important; }
+.bg-forest       { background-color: var(--forest) !important; }
+.text-ink        { color: var(--ink); }
+.text-ink-secondary { color: var(--ink-secondary); }
+.text-ink-tertiary  { color: var(--ink-tertiary); }
+.text-cream      { color: var(--cream); }
+.text-forest     { color: var(--forest); }
+.text-brick      { color: var(--brick); }
+.text-amber      { color: var(--amber); }
+.text-dusty      { color: var(--dusty); }
+.border-hairline { border-color: var(--hairline) !important; }
+
+/* ─── Animation delays ───────────────────────────────────────────────────── */
+
+@layer utilities {
+  .animate-delay-1  { animation-delay:  60ms; }
+  .animate-delay-2  { animation-delay: 120ms; }
+  .animate-delay-3  { animation-delay: 180ms; }
+  .animate-delay-4  { animation-delay: 240ms; }
+  .animate-delay-5  { animation-delay: 300ms; }
+  .animate-delay-6  { animation-delay: 360ms; }
+  .animate-delay-7  { animation-delay: 420ms; }
+  .animate-delay-8  { animation-delay: 480ms; }
+  .animate-delay-9  { animation-delay: 540ms; }
+}
+
+/* ─── Input / number spinner ─────────────────────────────────────────────── */
+
 input[type='number']::-webkit-inner-spin-button,
 input[type='number']::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -202,51 +393,34 @@ input[type='number'] {
   appearance: textfield;
 }
 
-/* Recharts tooltip + axis recolor for both themes */
+/* ─── Recharts ───────────────────────────────────────────────────────────── */
+
 .recharts-default-tooltip {
   background-color: var(--surface) !important;
-  border: none !important;
+  border: 1px solid var(--hairline) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.10) !important;
   color: var(--ink) !important;
 }
 .recharts-tooltip-item-list { color: var(--ink) !important; }
-.recharts-tooltip-label { color: var(--ink-secondary) !important; }
-
-@layer utilities {
-  .animate-delay-1 { animation-delay: 60ms; }
-  .animate-delay-2 { animation-delay: 120ms; }
-  .animate-delay-3 { animation-delay: 180ms; }
-  .animate-delay-4 { animation-delay: 240ms; }
-  .animate-delay-5 { animation-delay: 300ms; }
-  .animate-delay-6 { animation-delay: 360ms; }
-  .animate-delay-7 { animation-delay: 420ms; }
-  .animate-delay-8 { animation-delay: 480ms; }
-  .animate-delay-9 { animation-delay: 540ms; }
-  .text-forest { color: var(--forest); }
-  .text-brick  { color: var(--brick); }
-  .text-amber  { color: var(--amber); }
-  .text-dusty  { color: var(--dusty); }
-}
-
-/* Recharts cleanup */
+.recharts-tooltip-label      { color: var(--ink-secondary) !important; }
 .recharts-cartesian-axis-line,
-.recharts-cartesian-axis-tick-line {
-  display: none;
-}
+.recharts-cartesian-axis-tick-line { display: none; }
 .recharts-cartesian-grid line {
   stroke: var(--hairline);
-  stroke-dasharray: 2 4;
+  stroke-dasharray: 2 5;
 }
 .recharts-tooltip-wrapper:focus { outline: none; }
 
-/* Input reset */
+/* ─── Global resets ──────────────────────────────────────────────────────── */
+
 input, button { font: inherit; }
-input:focus { outline: none; }
+input:focus   { outline: none; }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar       { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
-/* Hide scrollbar (used by the horizontally-scrollable tab bar on mobile) */
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar                     { -ms-overflow-style: none; scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar  { display: none; }

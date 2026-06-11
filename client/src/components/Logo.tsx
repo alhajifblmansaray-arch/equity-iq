@@ -1,18 +1,27 @@
-import { TrendingUp } from 'lucide-react';
-
 export default function Logo({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
-  const icon = size === 'lg' ? 24 : size === 'md' ? 18 : 14;
-  const box = size === 'lg' ? 'w-10 h-10' : size === 'md' ? 'w-8 h-8' : 'w-6 h-6';
-  const text = size === 'lg' ? 'text-2xl' : size === 'md' ? 'text-xl' : 'text-base';
+  const dims = { sm: 22, md: 30, lg: 40 } as const;
+  const d = dims[size];
+  const textClass = size === 'lg' ? 'text-2xl' : size === 'md' ? 'text-[17px]' : 'text-[14px]';
+
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-2.5 select-none">
+      {/* Custom mark — stacked bars with trend arrow */}
+      <svg width={d} height={d} viewBox="0 0 32 32" fill="none" aria-hidden>
+        <rect width="32" height="32" rx="9" fill="var(--forest)" />
+        {/* Rising bars */}
+        <rect x="5"  y="20" width="5" height="7"  rx="1.5" fill="rgba(255,255,255,0.50)" />
+        <rect x="12" y="14" width="5" height="13" rx="1.5" fill="rgba(255,255,255,0.75)" />
+        <rect x="19" y="8"  width="5" height="19" rx="1.5" fill="rgba(255,255,255,1.00)" />
+        {/* Diagonal tick */}
+        <path d="M7.5 13 L14 7 L19 10.5" stroke="rgba(255,255,255,0.88)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        <circle cx="19" cy="10.5" r="1.6" fill="rgba(255,255,255,0.88)" />
+      </svg>
       <span
-        className={`${box} rounded-xl flex items-center justify-center`}
-        style={{ background: 'var(--forest)' }}
+        className={`font-serif ${textClass} text-ink`}
+        style={{ letterSpacing: '-0.018em' }}
       >
-        <TrendingUp size={icon} color="var(--cream)" strokeWidth={2.4} />
+        EquityIQ
       </span>
-      <span className={`font-serif ${text} tracking-tight1 text-ink`}>EquityIQ</span>
     </div>
   );
 }

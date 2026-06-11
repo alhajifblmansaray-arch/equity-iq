@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, Bell, TrendingDown, TrendingUp } from 'lucide-react';
+import { Activity, Bell, TrendingDown, TrendingUp } from '../lib/icons';
 import { Link } from 'react-router-dom';
 import type { ResearchReport } from '../types';
 import { fmtCompact, fmtDate, fmtPct, fmtPrice, fmtRelative } from '../lib/helpers';
@@ -40,18 +40,15 @@ export default function SnapshotCard({ data }: Props) {
   const s = data.snapshot;
   const { tick, connected, lastUpdate } = useLivePrice(data.ticker);
 
-  // Determine "fresh enough" — Finnhub only streams during market hours.
   const isLive = useMemo(() => {
     if (!tick || !lastUpdate) return false;
     return Date.now() - lastUpdate < 60_000;
   }, [tick, lastUpdate]);
 
-  // Effective price: live tick if available, else snapshot price.
   const livePrice = tick?.price;
   const effectivePrice = livePrice ?? s?.price ?? 0;
   const displayPrice = useAnimatedNumber(effectivePrice);
 
-  // Effective change vs prev close — use live price if streaming, else snapshot's own change.
   const effectiveChange = useMemo(() => {
     if (livePrice != null && s?.prevClose != null) {
       const ch = livePrice - s.prevClose;
@@ -75,50 +72,71 @@ export default function SnapshotCard({ data }: Props) {
 
   return (
     <div className="card animate-fadeUp">
+      {/* Header row */}
       <div className="flex items-start justify-between gap-4 mb-2">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-2">
             <span className="eyebrow">Snapshot</span>
             {isLive ? (
               <span
-                className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] uppercase tracking-eyebrow font-medium"
-                style={{ background: 'color-mix(in srgb, var(--forest) 14%, transparent)', color: 'var(--forest)' }}
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase"
+                style={{
+                  background: 'rgba(46,93,67,0.12)',
+                  color: 'var(--forest)',
+                  border: '1px solid rgba(46,93,67,0.22)',
+                  letterSpacing: '0.08em',
+                }}
                 title={`Last tick ${fmtRelative(new Date(lastUpdate!).toISOString())}`}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-forest animate-pulseDot" />
                 Live
               </span>
             ) : connected ? (
-              <span className="text-[10px] uppercase tracking-eyebrow text-ink-tertiary" title="Connected — waiting for next trade. Market may be closed.">
+              <span className="text-[10px] uppercase tracking-eyebrow text-ink-tertiary">
                 · waiting
               </span>
             ) : null}
           </div>
-          <h2 className="font-serif text-5xl md:text-6xl tracking-tight2 leading-none">{data.ticker}</h2>
+          <h2 className="font-serif text-5xl md:text-6xl leading-none" style={{ letterSpacing: '-0.028em' }}>
+            {data.ticker}
+          </h2>
           {data.profile?.name && (
-            <div className="text-ink-secondary text-sm mt-2">
+            <div className="text-ink-secondary text-sm mt-2 font-medium">
               {data.profile.name}
-              {data.profile.sector && <span className="text-ink-tertiary"> · {data.profile.sector}</span>}
+              {data.profile.sector && (
+                <span className="text-ink-tertiary font-normal"> · {data.profile.sector}</span>
+              )}
             </div>
           )}
         </div>
+
         <div className="flex flex-col items-end gap-2">
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
             <WatchlistButton ticker={data.ticker} />
             <Link
               to={`/live?ticker=${data.ticker}`}
-              className="inline-flex items-center gap-1.5 rounded-full bg-cream-tint px-3 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink hover:bg-white transition"
+              className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-ink-secondary transition"
+              style={{
+                background: 'var(--panel-bg)',
+                border: '1px solid var(--panel-border)',
+                boxShadow: 'var(--panel-shadow)',
+              }}
               title="Open live chart"
             >
-              <Activity size={13} strokeWidth={1.8} />
+              <Activity size={13} />
               Live
             </Link>
             <Link
               to={`/alerts?ticker=${data.ticker}`}
-              className="inline-flex items-center gap-1.5 rounded-full bg-cream-tint px-3 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink hover:bg-white transition"
+              className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-ink-secondary transition"
+              style={{
+                background: 'var(--panel-bg)',
+                border: '1px solid var(--panel-border)',
+                boxShadow: 'var(--panel-shadow)',
+              }}
               title="Set a price alert"
             >
-              <Bell size={13} strokeWidth={1.8} />
+              <Bell size={13} />
               Alert
             </Link>
           </div>
@@ -133,15 +151,19 @@ export default function SnapshotCard({ data }: Props) {
         </div>
       </div>
 
-      <div className="mt-6 flex items-baseline gap-2">
-        <span className="text-ink-tertiary text-2xl md:text-3xl font-serif">$</span>
-        <span className="font-serif text-6xl md:text-[72px] leading-none tracking-tight2 tabular-nums">
+      {/* Price */}
+      <div className="mt-5 flex items-baseline gap-1.5">
+        <span className="text-ink-tertiary text-2xl md:text-3xl font-serif" style={{ letterSpacing: '-0.02em' }}>$</span>
+        <span
+          className="font-serif text-6xl md:text-[76px] leading-none tabular-nums"
+          style={{ letterSpacing: '-0.028em' }}
+        >
           {fmtPrice(displayPrice)}
         </span>
       </div>
 
-      <div className={`mt-3 flex items-center gap-2 text-base font-medium ${up ? 'text-forest' : 'text-brick'}`}>
-        {up ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+      <div className={`mt-3 flex items-center gap-2 text-[15px] font-semibold ${up ? 'text-forest' : 'text-brick'}`}>
+        {up ? <TrendingUp size={17} /> : <TrendingDown size={17} />}
         <span className="tabular-nums">{up ? '+' : ''}{fmtPrice(effectiveChange.change)}</span>
         <span className="tabular-nums">({fmtPct(effectiveChange.changePct)})</span>
         <span className="text-ink-tertiary font-normal text-sm">
@@ -149,28 +171,53 @@ export default function SnapshotCard({ data }: Props) {
         </span>
       </div>
 
-      <div className="hairline-divider my-7" />
+      <div className="hairline-divider my-6" />
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-5">
-        <Metric label="Open" value={s.open ? `$${fmtPrice(s.open)}` : '—'} />
-        <Metric label="High" value={s.high ? `$${fmtPrice(s.high)}` : '—'} />
-        <Metric label="Low" value={s.low ? `$${fmtPrice(s.low)}` : '—'} />
-        <Metric label="Volume" value={fmtCompact(s.volume)} />
-        <Metric label="Prev close" value={s.prevClose ? `$${fmtPrice(s.prevClose)}` : '—'} />
-        <Metric
+      {/* Metrics as tiles */}
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+        <MetricTile label="Open"       value={s.open      ? `$${fmtPrice(s.open)}`      : '—'} />
+        <MetricTile label="High"       value={s.high      ? `$${fmtPrice(s.high)}`      : '—'} accent="forest" />
+        <MetricTile label="Low"        value={s.low       ? `$${fmtPrice(s.low)}`       : '—'} accent="brick" />
+        <MetricTile label="Volume"     value={fmtCompact(s.volume)} />
+        <MetricTile label="Prev close" value={s.prevClose ? `$${fmtPrice(s.prevClose)}` : '—'} />
+        <MetricTile
           label="VWAP"
-          value={s.vwap ? `$${fmtPrice(s.vwap)}` : s.marketCap ? `Mkt cap ${fmtCompact(s.marketCap)}` : '—'}
+          value={s.vwap ? `$${fmtPrice(s.vwap)}` : s.marketCap ? fmtCompact(s.marketCap) : '—'}
+          sub={s.marketCap && !s.vwap ? 'Mkt cap' : undefined}
         />
       </div>
     </div>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function MetricTile({
+  label,
+  value,
+  sub,
+  accent,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  accent?: 'forest' | 'brick';
+}) {
+  const accentColor = accent === 'forest' ? 'var(--forest)' : accent === 'brick' ? 'var(--brick)' : undefined;
   return (
-    <div>
+    <div
+      className="rounded-xl px-3 py-2.5"
+      style={{
+        background: 'var(--panel-bg)',
+        border: '1px solid var(--panel-border)',
+      }}
+    >
       <div className="eyebrow mb-1">{label}</div>
-      <div className="text-ink text-[17px] font-medium tracking-tight1 tabular-nums">{value}</div>
+      {sub && <div className="text-[10px] text-ink-tertiary -mt-0.5 mb-0.5">{sub}</div>}
+      <div
+        className="text-[15px] font-semibold tabular-nums"
+        style={{ color: accentColor ?? 'var(--ink)', letterSpacing: '-0.015em' }}
+      >
+        {value}
+      </div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays } from '../lib/icons';
 import type { ResearchReport } from '../types';
 
 export default function EarningsCountdown({ data }: { data: ResearchReport }) {

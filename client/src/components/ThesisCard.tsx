@@ -1,5 +1,5 @@
 import { FormEvent, useRef, useState, useEffect } from 'react';
-import { AlertCircle, ArrowUp, Loader2, MessageSquare, Sparkles } from 'lucide-react';
+import { AlertCircle, ArrowUp, Loader2, MessageSquare, Sparkles } from '../lib/icons';
 import { research } from '../lib/api';
 import { useAiJob } from '../contexts/AiJobsContext';
 import type { ResearchReport } from '../types';

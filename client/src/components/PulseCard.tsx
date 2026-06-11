@@ -1,4 +1,4 @@
-import { ExternalLink, Flame, Landmark, MessageCircle, Radio, TrendingDown, TrendingUp, Users } from 'lucide-react';
+import { ExternalLink, Flame, Landmark, MessageCircle, Radio, TrendingDown, TrendingUp, Users } from '../lib/icons';
 import type {
   CongressionalTrade,
   InsiderTrade,

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Minus, Plus, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
+import { Minus, Plus, Sparkles, TrendingDown, TrendingUp } from '../lib/icons';
 import type { ResearchReport } from '../types';
 import { fmtPct, fmtPrice } from '../lib/helpers';
 

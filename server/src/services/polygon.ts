@@ -95,3 +95,96 @@ export async function polygonOptionsFlow(ticker: string): Promise<OptionsFlow | 
     return null;
   }
 }
+
+/* ── Options chain ──────────────────────────────────────────────────────── */
+
+export interface OptionsContract {
+  type: 'call' | 'put';
+  strike: number;
+  expiry: string;
+  daysToExpiry: number;
+  openInterest: number;
+  volume: number;
+  impliedVol: number | null;
+  delta: number | null;
+  gamma: number | null;
+  theta: number | null;
+  bid: number | null;
+  ask: number | null;
+  lastPrice: number | null;
+}
+
+export interface OptionsChainData {
+  ticker: string;
+  spot: number | null;
+  asOf: string;
+  expiries: string[];            // sorted list of unique expiry dates
+  contracts: OptionsContract[];  // all contracts (filter/group client-side)
+}
+
+const chainCache = new Map<string, { value: OptionsChainData | null; expires: number }>();
+const CHAIN_TTL = 3 * 60_000;
+
+export async function polygonOptionsChain(ticker: string, limit = 250): Promise<OptionsChainData | null> {
+  const k = key();
+  if (!k) return null;
+  const t = ticker.toUpperCase();
+  const hit = chainCache.get(t);
+  if (hit && hit.expires > Date.now()) return hit.value;
+  try {
+    const { data } = await axios.get(`${BASE}/v3/snapshot/options/${t}`, {
+      params: { apiKey: k, limit },
+      timeout: 14_000,
+    });
+    const results = data?.results;
+    if (!Array.isArray(results) || results.length === 0) {
+      chainCache.set(t, { value: null, expires: Date.now() + 30_000 });
+      return null;
+    }
+
+    const now = Date.now();
+    const expirySet = new Set<string>();
+    const contracts: OptionsContract[] = [];
+
+    for (const r of results) {
+      const type = r?.details?.contract_type as 'call' | 'put' | undefined;
+      const strike = Number(r?.details?.strike_price);
+      const expiry: string = r?.details?.expiration_date || '';
+      if (!type || !Number.isFinite(strike) || !expiry) continue;
+      expirySet.add(expiry);
+      const expiryMs = new Date(expiry).getTime();
+      const daysToExpiry = Math.max(0, Math.round((expiryMs - now) / 86_400_000));
+      const iv = Number(r?.implied_volatility) || null;
+      contracts.push({
+        type,
+        strike,
+        expiry,
+        daysToExpiry,
+        openInterest: Number(r?.open_interest ?? 0),
+        volume: Number(r?.day?.volume ?? 0),
+        impliedVol: iv && iv > 0 && iv < 5 ? iv : null,
+        delta: Number(r?.greeks?.delta) || null,
+        gamma: Number(r?.greeks?.gamma) || null,
+        theta: Number(r?.greeks?.theta) || null,
+        bid: Number(r?.day?.last_quote?.bid) || null,
+        ask: Number(r?.day?.last_quote?.ask) || null,
+        lastPrice: Number(r?.day?.close) || Number(r?.last_quote?.ask) || null,
+      });
+    }
+
+    const expiries = Array.from(expirySet).sort();
+    const value: OptionsChainData = {
+      ticker: t,
+      spot: null,
+      asOf: new Date().toISOString(),
+      expiries,
+      contracts,
+    };
+    chainCache.set(t, { value, expires: Date.now() + CHAIN_TTL });
+    return value;
+  } catch (err: any) {
+    console.warn(`  ✗ polygon:chain ${t} ${err?.response?.status || err?.code || 'ERR'}`);
+    chainCache.set(t, { value: null, expires: Date.now() + 30_000 });
+    return null;
+  }
+}

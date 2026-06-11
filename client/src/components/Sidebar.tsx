@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Activity,
+  Award,
   Bell,
+  BookOpen,
   CalendarDays,
   GitCompareArrows,
   LayoutDashboard,
@@ -10,8 +12,10 @@ import {
   Menu,
   Newspaper,
   Star,
+  Trophy,
+  TrendingUp,
   X,
-} from 'lucide-react';
+} from '../lib/icons';
 import Logo from './Logo';
 import Sparkline from './Sparkline';
 import ThemeToggle from './ThemeToggle';
@@ -19,14 +23,20 @@ import { useAuth } from '../contexts/AuthContext';
 import { useWatchlist } from '../contexts/WatchlistContext';
 import { fmtPct, fmtPrice } from '../lib/helpers';
 
-const NAV: Array<{ to: string; label: string; icon: React.ReactNode }> = [
-  { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} strokeWidth={1.8} /> },
-  { to: '/watchlist', label: 'Watchlist', icon: <Star size={18} strokeWidth={1.8} /> },
-  { to: '/compare', label: 'Compare', icon: <GitCompareArrows size={18} strokeWidth={1.8} /> },
-  { to: '/live', label: 'Live charts', icon: <Activity size={18} strokeWidth={1.8} /> },
-  { to: '/news', label: 'News', icon: <Newspaper size={18} strokeWidth={1.8} /> },
-  { to: '/calendar', label: 'Earnings', icon: <CalendarDays size={18} strokeWidth={1.8} /> },
-  { to: '/alerts', label: 'Alerts', icon: <Bell size={18} strokeWidth={1.8} /> },
+const NAV_MAIN: Array<{ to: string; label: string; icon: React.ReactNode }> = [
+  { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+  { to: '/watchlist', label: 'Watchlist', icon: <Star size={18} /> },
+  { to: '/compare', label: 'Compare', icon: <GitCompareArrows size={18} /> },
+  { to: '/live', label: 'Live charts', icon: <Activity size={18} /> },
+  { to: '/news', label: 'News', icon: <Newspaper size={18} /> },
+  { to: '/calendar', label: 'Earnings', icon: <CalendarDays size={18} /> },
+  { to: '/alerts', label: 'Alerts', icon: <Bell size={18} /> },
+];
+
+const NAV_LEARN: Array<{ to: string; label: string; icon: React.ReactNode; badge?: string }> = [
+  { to: '/learn', label: 'Academy', icon: <BookOpen size={18} />, badge: 'New' },
+  { to: '/simulator', label: 'Simulator', icon: <TrendingUp size={18} /> },
+  { to: '/challenge', label: 'Challenge', icon: <Trophy size={18} /> },
 ];
 
 export default function Sidebar() {
@@ -106,6 +116,10 @@ export default function Sidebar() {
 function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
   const { user, logout } = useAuth();
   const { tickers, snaps } = useWatchlist();
+  const navigate = useNavigate();
+
+  const avatarSrc = user?.avatarUrl;
+  const initials = (user?.name || 'U').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
 
   return (
     <div className="flex flex-col h-full overflow-y-auto px-5 pt-6 pb-5">
@@ -114,9 +128,10 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
         <ThemeToggle />
       </div>
 
+      {/* Main navigation */}
       <div className="eyebrow px-2 mb-2">Navigate</div>
-      <nav className="flex flex-col gap-0.5 mb-7">
-        {NAV.map((item) => (
+      <nav className="flex flex-col gap-0.5 mb-5">
+        {NAV_MAIN.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -136,6 +151,43 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
         ))}
       </nav>
 
+      {/* Learn section */}
+      <div className="eyebrow px-2 mb-2 flex items-center gap-2">
+        <span>Learn & Practice</span>
+      </div>
+      <nav className="flex flex-col gap-0.5 mb-5">
+        {NAV_LEARN.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            onClick={onNavigate}
+            end
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2 rounded-2xl text-[14px] font-medium transition ${
+                isActive
+                  ? 'glass-chip text-ink'
+                  : 'glass-chip-hover text-ink-secondary hover:text-ink'
+              }`
+            }
+          >
+            <span className="text-ink-tertiary">{item.icon}</span>
+            <span className="flex-1">{item.label}</span>
+            {item.badge && (
+              <span
+                className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                style={{
+                  background: 'color-mix(in srgb, var(--forest) 15%, transparent)',
+                  color: 'var(--forest)',
+                }}
+              >
+                {item.badge}
+              </span>
+            )}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* Watchlist mini list */}
       <div className="eyebrow px-2 mb-2 flex items-center justify-between">
         <span>My list</span>
         <span className="text-ink-tertiary normal-case tracking-normal">{tickers.length}</span>
@@ -193,27 +245,39 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
         )}
       </div>
 
+      {/* User profile footer */}
       <div className="mt-auto pt-4 border-t border-hairline">
-        <div className="flex items-center gap-3 px-2 py-1">
+        <button
+          onClick={() => { navigate('/profile'); onNavigate(); }}
+          className="flex items-center gap-3 px-2 py-2 w-full rounded-2xl glass-chip-hover transition group"
+          title="View profile"
+        >
           <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold"
+            className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-xs font-semibold flex-shrink-0"
             style={{ background: 'var(--forest)', color: 'var(--cream)' }}
           >
-            {user?.name?.[0]?.toUpperCase() || 'U'}
+            {avatarSrc ? (
+              <img src={avatarSrc} alt="Avatar" className="w-full h-full object-cover" />
+            ) : (
+              initials
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-[13px] font-medium truncate">{user?.name}</div>
-            <div className="text-[11px] text-ink-tertiary truncate">{user?.email}</div>
+            <div className="text-[11px] text-ink-tertiary capitalize">
+              {user?.mode || 'beginner'} mode
+              {user?.lessonStreak ? ` · 🔥 ${user.lessonStreak}` : ''}
+            </div>
           </div>
           <button
-            onClick={() => logout()}
-            className="text-ink-tertiary hover:text-ink p-2 rounded-full glass-chip-hover"
+            onClick={(e) => { e.stopPropagation(); logout(); }}
+            className="text-ink-tertiary hover:text-ink p-1.5 rounded-full glass-chip-hover opacity-0 group-hover:opacity-100 transition"
             aria-label="Sign out"
             title="Sign out"
           >
-            <LogOut size={15} />
+            <LogOut size={14} />
           </button>
-        </div>
+        </button>
       </div>
     </div>
   );

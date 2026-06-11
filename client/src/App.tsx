@@ -13,6 +13,10 @@ import News from './pages/News';
 import Compare from './pages/Compare';
 import Calendar from './pages/Calendar';
 import Alerts from './pages/Alerts';
+import Learn from './pages/Learn';
+import Simulator from './pages/Simulator';
+import Challenge from './pages/Challenge';
+import Profile from './pages/Profile';
 
 function FullScreenLoader() {
   return (
@@ -61,6 +65,10 @@ export default function App() {
         <Route path="/news" element={<News />} />
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/alerts" element={<Alerts />} />
+        <Route path="/learn" element={<Learn />} />
+        <Route path="/simulator" element={<Simulator />} />
+        <Route path="/challenge" element={<Challenge />} />
+        <Route path="/profile" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

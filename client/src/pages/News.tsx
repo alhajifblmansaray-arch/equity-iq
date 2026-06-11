@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ArrowUpRight, Globe, Newspaper, RotateCw } from 'lucide-react';
+import { ArrowUpRight, Globe, Newspaper, RotateCw } from '../lib/icons';
 import SearchBar from '../components/SearchBar';
 import { useWatchlist } from '../contexts/WatchlistContext';
 import { newsApi, research } from '../lib/api';

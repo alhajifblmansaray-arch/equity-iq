@@ -1,6 +1,9 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+export type UserGoal = 'learn' | 'save' | 'understand' | 'trade';
+export type UserMode = 'beginner' | 'intermediate' | 'advanced';
+
 export interface IUser extends Document {
   email: string;
   name: string;
@@ -8,6 +11,11 @@ export interface IUser extends Document {
   googleId?: string;
   avatarUrl?: string;
   watchlist: string[];
+  goal?: UserGoal;
+  mode: UserMode;
+  badges: string[];
+  lessonStreak: number;
+  lastLessonAt?: Date;
   createdAt: Date;
   comparePassword(plain: string): Promise<boolean>;
 }
@@ -20,6 +28,11 @@ const UserSchema = new Schema<IUser>(
     googleId: { type: String, index: true, sparse: true },
     avatarUrl: { type: String },
     watchlist: { type: [String], default: [] },
+    goal: { type: String, enum: ['learn', 'save', 'understand', 'trade'] },
+    mode: { type: String, enum: ['beginner', 'intermediate', 'advanced'], default: 'beginner' },
+    badges: { type: [String], default: [] },
+    lessonStreak: { type: Number, default: 0 },
+    lastLessonAt: { type: Date },
   },
   { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } }
 );

@@ -1,10 +1,136 @@
+export type UserGoal = 'learn' | 'save' | 'understand' | 'trade';
+export type UserMode = 'beginner' | 'intermediate' | 'advanced';
+
 export interface User {
   id: string;
   email: string;
   name: string;
-  avatarUrl?: string;
+  avatarUrl?: string | null;
+  goal?: UserGoal | null;
+  mode: UserMode;
+  badges: string[];
+  lessonStreak: number;
   watchlist: string[];
   createdAt: string;
+}
+
+/* ── Learning ─────────────────────────────────────────────────────────────── */
+
+export interface Track {
+  id: string;
+  title: string;
+  subtitle: string;
+  emoji: string;
+  color: string;
+}
+
+export interface LessonSummary {
+  id: string;
+  trackId: string;
+  title: string;
+  subtitle: string;
+  emoji: string;
+  readingMinutes: number;
+  type: 'lesson' | 'case-study';
+  completed: boolean;
+}
+
+export interface LessonKeyTerm {
+  term: string;
+  definition: string;
+}
+
+export interface LessonQuiz {
+  question: string;
+  options: string[];
+  correct: number;
+}
+
+export interface Lesson {
+  id: string;
+  trackId: string;
+  title: string;
+  subtitle: string;
+  emoji: string;
+  readingMinutes: number;
+  type?: 'lesson' | 'case-study';
+  body: string[];
+  eli10?: string[];
+  keyTerms: LessonKeyTerm[];
+  quiz: LessonQuiz;
+}
+
+export interface LearnProgress {
+  streak: number;
+  lastLessonAt: string | null;
+  completedCount: number;
+  totalCount: number;
+  badges: string[];
+}
+
+/* ── Simulator ────────────────────────────────────────────────────────────── */
+
+export interface SimHolding {
+  ticker: string;
+  shares: number;
+  avgCost: number;
+  currentPrice: number | null;
+  marketValue: number | null;
+  costBasis: number;
+  pnl: number | null;
+  pnlPct: number | null;
+}
+
+export interface SimPortfolio {
+  cash: number;
+  startingBalance: number;
+  totalValue: number;
+  totalPnl: number;
+  totalPnlPct: number;
+  holdings: SimHolding[];
+  season: string;
+  resetAt: string;
+}
+
+export interface SimSnapshot {
+  date: string; // YYYY-MM-DD
+  totalValue: number;
+  cash: number;
+  investedValue: number;
+}
+
+export interface SimTrade {
+  _id: string;
+  ticker: string;
+  action: 'buy' | 'sell';
+  shares: number;
+  price: number;
+  total: number;
+  pnl: number | null;
+  pnlPct: number | null;
+  aiDebrief: string | null;
+  createdAt: string;
+}
+
+/* ── Weekly Challenge ─────────────────────────────────────────────────────── */
+
+export interface WeeklyChallenge {
+  week: string;
+  ticker: string;
+  startPrice: number;
+  endPrice: number | null;
+  resolved: boolean;
+  userPick: { direction: 'up' | 'down'; result: 'correct' | 'incorrect' | null } | null;
+  community: { total: number; upPct: number | null; downPct: number | null };
+}
+
+export interface ChallengeHistory {
+  week: string;
+  ticker: string;
+  startPrice: number;
+  endPrice: number | null;
+  direction: 'up' | 'down' | null;
+  result: 'correct' | 'incorrect' | null;
 }
 
 export interface NormalizedBar {
@@ -221,14 +347,69 @@ export interface EarningsEvent {
   revenueActual?: number;
 }
 
+export type AlertType = 'price' | 'rsi_above' | 'rsi_below' | 'macd_bullish' | 'macd_bearish' | 'vol_spike';
+
 export interface PriceAlert {
   id: string;
   ticker: string;
+  alertType: AlertType;
   condition: 'above' | 'below';
   price: number;
+  threshold: number;
   active: boolean;
   triggeredAt?: string;
   createdAt: string;
+}
+
+export interface QuickScan {
+  ticker: string;
+  price: number | null;
+  change: number | null;
+  changePct: number | null;
+  high: number | null;
+  low: number | null;
+  volume: number | null;
+  rsi: number | null;
+  macd: { macd: number; signal: number; histogram: number } | null;
+  sma50: number | null;
+  sma200: number | null;
+}
+
+export interface OptionsContract {
+  type: 'call' | 'put';
+  strike: number;
+  expiry: string;
+  daysToExpiry: number;
+  openInterest: number;
+  volume: number;
+  impliedVol: number | null;
+  delta: number | null;
+  gamma: number | null;
+  theta: number | null;
+  bid: number | null;
+  ask: number | null;
+  lastPrice: number | null;
+}
+
+export interface OptionsChainData {
+  ticker: string;
+  spot: number | null;
+  asOf: string;
+  expiries: string[];
+  contracts: OptionsContract[];
+}
+
+export interface HorizonAccuracy {
+  horizon: string;
+  n: number;
+  directionHitRate: number; // 0..1
+  withinRangeRate: number;  // 0..1
+  avgBiasPct: number;
+}
+
+export interface ForecastAccuracy {
+  ticker: string;
+  accuracy: HorizonAccuracy[];
 }
 
 export type Confidence = 'low' | 'moderate' | 'high';

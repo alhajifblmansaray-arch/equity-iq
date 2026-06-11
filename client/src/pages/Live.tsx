@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Activity, AlertCircle, Pause, Play, TrendingDown, TrendingUp } from 'lucide-react';
+import { Activity, AlertCircle, Pause, Play, TrendingDown, TrendingUp } from '../lib/icons';
 import SearchBar from '../components/SearchBar';
 import { useWatchlist } from '../contexts/WatchlistContext';
 import { IntradayInterval, research } from '../lib/api';
@@ -248,7 +248,7 @@ export default function LivePage() {
                     type="monotone"
                     dataKey="close"
                     stroke={color}
-                    strokeWidth={2}
+                   
                     fill="url(#liveGrad)"
                     isAnimationActive={false}
                   />

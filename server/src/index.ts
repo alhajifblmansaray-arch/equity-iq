@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import path from 'path';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import session from 'express-session';
@@ -13,6 +14,10 @@ import userRoutes from './routes/user';
 import newsRoutes from './routes/news';
 import calendarRoutes from './routes/calendar';
 import alertRoutes from './routes/alerts';
+import simulatorRoutes from './routes/simulator';
+import learnRoutes from './routes/learn';
+import challengeRoutes from './routes/challenge';
+import profileRoutes from './routes/profile';
 import { startAlertChecker } from './services/alertChecker';
 import { resolveDueForecasts } from './services/forecastTracker';
 
@@ -40,7 +45,10 @@ async function main(): Promise<void> {
       credentials: true,
     })
   );
-  app.use(express.json({ limit: '256kb' }));
+  app.use(express.json({ limit: '2mb' }));
+
+  // Serve uploaded avatars
+  app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
   app.use(
     session({
@@ -72,6 +80,10 @@ async function main(): Promise<void> {
   app.use('/api/news', newsRoutes);
   app.use('/api/calendar', calendarRoutes);
   app.use('/api/alerts', alertRoutes);
+  app.use('/api/simulator', simulatorRoutes);
+  app.use('/api/learn', learnRoutes);
+  app.use('/api/challenge', challengeRoutes);
+  app.use('/api/profile', profileRoutes);
 
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Unhandled error:', err);

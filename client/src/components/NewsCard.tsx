@@ -1,4 +1,4 @@
-import { ArrowUpRight, Newspaper } from 'lucide-react';
+import { ArrowUpRight, Newspaper } from '../lib/icons';
 import { Link } from 'react-router-dom';
 import type { ResearchReport } from '../types';
 import { fmtRelative, sentimentPill } from '../lib/helpers';
@@ -21,7 +21,7 @@ export default function NewsCard({ data }: Props) {
           className="inline-flex items-center gap-1.5 rounded-full bg-cream-tint px-3 py-1.5 text-xs font-medium text-ink-secondary hover:text-ink hover:bg-white transition flex-shrink-0"
           title={`All ${data.ticker} news`}
         >
-          <Newspaper size={13} strokeWidth={1.8} />
+          <Newspaper size={13} />
           All {data.ticker} news
         </Link>
       </div>

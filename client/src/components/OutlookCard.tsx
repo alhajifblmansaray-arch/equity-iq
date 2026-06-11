@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowDownRight, ArrowRight, ArrowUpRight, Globe2, Loader2, Sparkles, Telescope } from 'lucide-react';
+import { AlertCircle, ArrowDownRight, ArrowRight, ArrowUpRight, Globe2, Loader2, Sparkles, Telescope } from '../lib/icons';
 import { research } from '../lib/api';
 import { useAiJob } from '../contexts/AiJobsContext';
 import type { Confidence, Direction, Outlook, Prediction, ResearchReport } from '../types';

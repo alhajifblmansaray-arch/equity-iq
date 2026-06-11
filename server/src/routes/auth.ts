@@ -26,7 +26,11 @@ function sanitize(user: IUser) {
     id: user.id,
     email: user.email,
     name: user.name,
-    avatarUrl: user.avatarUrl,
+    avatarUrl: user.avatarUrl || null,
+    goal: user.goal || null,
+    mode: user.mode || 'beginner',
+    badges: user.badges || [],
+    lessonStreak: user.lessonStreak || 0,
     watchlist: user.watchlist,
     createdAt: user.createdAt,
   };

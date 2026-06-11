@@ -1,5 +1,25 @@
 import axios from 'axios';
-import type { NormalizedBar, NormalizedQuote, ResearchReport, User } from '../types';
+import type {
+  AlertType,
+  ChallengeHistory,
+  ForecastAccuracy,
+  LearnProgress,
+  LessonSummary,
+  Lesson,
+  Track,
+  NormalizedBar,
+  NormalizedQuote,
+  OptionsChainData,
+  QuickScan,
+  ResearchReport,
+  SimPortfolio,
+  SimSnapshot,
+  SimTrade,
+  User,
+  UserGoal,
+  UserMode,
+  WeeklyChallenge,
+} from '../types';
 
 export const api = axios.create({
   baseURL: '/api',
@@ -83,13 +103,30 @@ export const research = {
         horizons ? { horizons } : {}
       )
       .then((r) => r.data),
+  quick: (ticker: string) =>
+    api
+      .get<QuickScan>(`/research/${encodeURIComponent(ticker.toUpperCase())}/quick`)
+      .then((r) => r.data),
+  optionsChain: (ticker: string) =>
+    api
+      .get<OptionsChainData>(`/research/${encodeURIComponent(ticker.toUpperCase())}/options-chain`)
+      .then((r) => r.data),
+  forecastAccuracy: (ticker: string) =>
+    api
+      .get<ForecastAccuracy>(`/research/${encodeURIComponent(ticker.toUpperCase())}/forecast-accuracy`)
+      .then((r) => r.data),
 };
 
 import type { PriceAlert } from '../types';
 export const alerts = {
   list: () => api.get<{ alerts: PriceAlert[] }>('/alerts').then((r) => r.data.alerts),
-  create: (ticker: string, condition: 'above' | 'below', price: number) =>
-    api.post<{ alert: PriceAlert }>('/alerts', { ticker, condition, price }).then((r) => r.data.alert),
+  create: (payload: {
+    ticker: string;
+    alertType?: AlertType;
+    condition?: 'above' | 'below';
+    price?: number;
+    threshold?: number;
+  }) => api.post<{ alert: PriceAlert }>('/alerts', payload).then((r) => r.data.alert),
   remove: (id: string) => api.delete(`/alerts/${id}`).then(() => undefined),
   toggle: (id: string) =>
     api.post<{ alert: PriceAlert }>(`/alerts/${id}/toggle`).then((r) => r.data.alert),
@@ -98,6 +135,47 @@ export const alerts = {
 export const newsApi = {
   market: () =>
     api.get<{ articles: import('../types').NormalizedNews[] }>('/news/market').then((r) => r.data),
+};
+
+export const simulator = {
+  get: () => api.get<SimPortfolio>('/simulator').then((r) => r.data),
+  buy: (ticker: string, shares: number) =>
+    api.post('/simulator/buy', { ticker, shares }).then((r) => r.data),
+  sell: (ticker: string, shares: number) =>
+    api.post('/simulator/sell', { ticker, shares }).then((r) => r.data),
+  trades: () => api.get<{ trades: SimTrade[] }>('/simulator/trades').then((r) => r.data.trades),
+  reset: () => api.post('/simulator/reset').then((r) => r.data),
+  snapshots: () => api.get<{ snapshots: SimSnapshot[] }>('/simulator/snapshots').then((r) => r.data.snapshots),
+};
+
+export const learn = {
+  lessons: () =>
+    api.get<{ lessons: LessonSummary[]; tracks: Track[]; completedCount: number; totalCount: number }>('/learn/lessons').then((r) => r.data),
+  lesson: (id: string) =>
+    api.get<{ lesson: Lesson; completed: boolean }>(`/learn/lessons/${id}`).then((r) => r.data),
+  complete: (id: string) =>
+    api.post<{ ok: boolean; streak: number; completedCount: number; newBadge: string | null }>(`/learn/lessons/${id}/complete`).then((r) => r.data),
+  progress: () => api.get<LearnProgress>('/learn/progress').then((r) => r.data),
+};
+
+export const challenge = {
+  get: () => api.get<WeeklyChallenge>('/challenge').then((r) => r.data),
+  pick: (direction: 'up' | 'down') =>
+    api.post<{ ok: boolean; direction: string }>('/challenge/pick', { direction }).then((r) => r.data),
+  history: () =>
+    api.get<{ history: ChallengeHistory[] }>('/challenge/history').then((r) => r.data.history),
+};
+
+export const profile = {
+  update: (data: { name?: string; goal?: UserGoal; mode?: UserMode }) =>
+    api.patch<{ ok: boolean; user: User }>('/profile', data).then((r) => r.data),
+  uploadAvatar: (file: File) => {
+    const form = new FormData();
+    form.append('avatar', file);
+    return api.post<{ ok: boolean; avatarUrl: string }>('/profile/avatar', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data);
+  },
 };
 
 export const watchlist = {

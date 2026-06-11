@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarDays, ChevronRight } from 'lucide-react';
+import { CalendarDays, ChevronRight } from '../lib/icons';
 import { api } from '../lib/api';
 import type { EarningsEvent } from '../types';
 import { fmtCompact } from '../lib/helpers';

@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowRight, Mail, Lock, User as UserIcon } from 'lucide-react';
+import { AlertCircle, ArrowRight, Mail, Lock, User as UserIcon } from '../lib/icons';
 import Logo from '../components/Logo';
 import { useAuth } from '../contexts/AuthContext';
 

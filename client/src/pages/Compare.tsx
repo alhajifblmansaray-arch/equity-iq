@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Crown, GitCompareArrows, Loader2, X } from 'lucide-react';
+import { Crown, GitCompareArrows, Loader2, X } from '../lib/icons';
 import { research } from '../lib/api';
 import type { NormalizedNews, ResearchReport } from '../types';
 import { computeVerdict, fmtCompact, fmtPct, fmtPrice, fmtRelative } from '../lib/helpers';
@@ -445,8 +445,8 @@ function Compared({ a, b }: { a: ResearchReport; b: ResearchReport }) {
                     new Date(String(d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                   }
                 />
-                <Area type="monotone" dataKey="a" stroke={COLORS[0]} strokeWidth={2} fill="url(#aGrad)" />
-                <Area type="monotone" dataKey="b" stroke={COLORS[1]} strokeWidth={2} fill="url(#bGrad)" />
+                <Area type="monotone" dataKey="a" stroke={COLORS[0]} fill="url(#aGrad)" />
+                <Area type="monotone" dataKey="b" stroke={COLORS[1]} fill="url(#bGrad)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>

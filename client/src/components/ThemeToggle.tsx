@@ -1,4 +1,4 @@
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from '../lib/icons';
 import { useTheme } from '../contexts/ThemeContext';
 
 export default function ThemeToggle({ size = 'sm' }: { size?: 'sm' | 'md' }) {
@@ -12,7 +12,7 @@ export default function ThemeToggle({ size = 'sm' }: { size?: 'sm' | 'md' }) {
       title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
       aria-label="Toggle theme"
     >
-      {theme === 'light' ? <Moon size={icon} strokeWidth={1.8} /> : <Sun size={icon} strokeWidth={1.8} />}
+      {theme === 'light' ? <Moon size={icon} weight="regular" /> : <Sun size={icon} weight="fill" />}
     </button>
   );
 }

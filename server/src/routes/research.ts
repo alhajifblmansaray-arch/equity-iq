@@ -375,6 +375,101 @@ router.post('/:ticker/forecast', requireAuth, async (req, res, next) => {
   }
 });
 
+// ── Quick-scan: price + technicals only (no news / AI / options flow) ──────
+router.get('/:ticker/quick', requireAuth, async (req, res, next) => {
+  const ticker = String(req.params.ticker || '').toUpperCase().trim();
+  if (!validTicker(ticker)) { res.status(400).json({ error: 'Invalid ticker.' }); return; }
+  try {
+    const [quote, bars] = await Promise.all([
+      (await twelveDataQuote(ticker)) || (await finnhubQuote(ticker)) || (await yahooQuote(ticker)),
+      (await twelveDataHistory(ticker, 60)) || (await yahooHistory(ticker, 60)) || (await alphaVantageHistory(ticker)),
+    ]);
+    if (!quote) { res.status(404).json({ error: `No data for ${ticker}.` }); return; }
+
+    // Inline technicals (same logic as research.ts — avoids a circular import)
+    let rsiVal: number | null = null;
+    let macdVal: { macd: number; signal: number; histogram: number } | null = null;
+    let sma50Val: number | null = null;
+    let sma200Val: number | null = null;
+
+    if (bars && bars.length) {
+      const closes = bars.map((b: any) => b.close);
+
+      // RSI-14
+      const period = 14;
+      if (bars.length > period) {
+        let g = 0, l = 0;
+        for (let i = bars.length - period; i < bars.length; i++) {
+          const d = bars[i].close - bars[i - 1].close;
+          if (d >= 0) g += d; else l -= d;
+        }
+        const al = l / period;
+        if (al === 0) rsiVal = 100;
+        else rsiVal = 100 - 100 / (1 + (g / period) / al);
+      }
+
+      // EMA helper
+      const emaFn = (vals: number[], w: number) => {
+        const k = 2 / (w + 1); let p = vals[0];
+        return vals.map((v: number, i: number) => { p = i === 0 ? v : v * k + p * (1 - k); return p; });
+      };
+
+      // MACD(12,26,9)
+      if (closes.length >= 35) {
+        const e12 = emaFn(closes, 12); const e26 = emaFn(closes, 26);
+        const ml = e12.map((v: number, i: number) => v - e26[i]);
+        const sl = emaFn(ml.slice(-50), 9);
+        const last = ml[ml.length - 1]; const sig = sl[sl.length - 1];
+        macdVal = { macd: last, signal: sig, histogram: last - sig };
+      }
+
+      // SMAs
+      if (closes.length >= 50) sma50Val = closes.slice(-50).reduce((s: number, v: number) => s + v, 0) / 50;
+      if (closes.length >= 200) sma200Val = closes.slice(-200).reduce((s: number, v: number) => s + v, 0) / 200;
+    }
+
+    res.json({
+      ticker,
+      price: quote.price,
+      change: quote.change ?? 0,
+      changePct: quote.changePct ?? 0,
+      high: quote.high ?? null,
+      low: quote.low ?? null,
+      volume: quote.volume ?? null,
+      rsi: rsiVal,
+      macd: macdVal,
+      sma50: sma50Val,
+      sma200: sma200Val,
+    });
+  } catch (err) { next(err); }
+});
+
+// ── Options chain (full Polygon snapshot) ──────────────────────────────────
+import { polygonOptionsChain } from '../services/polygon';
+
+router.get('/:ticker/options-chain', requireAuth, async (req, res, next) => {
+  const ticker = String(req.params.ticker || '').toUpperCase().trim();
+  if (!validTicker(ticker)) { res.status(400).json({ error: 'Invalid ticker.' }); return; }
+  try {
+    const chain = await polygonOptionsChain(ticker, Number(req.query.limit) || 250);
+    if (!chain) { res.status(404).json({ error: 'Options chain unavailable. POLYGON_API_KEY may not be set.' }); return; }
+    // Attach spot price
+    const q = (await twelveDataQuote(ticker)) || (await finnhubQuote(ticker)) || (await yahooQuote(ticker));
+    if (q) chain.spot = q.price;
+    res.json(chain);
+  } catch (err) { next(err); }
+});
+
+// ── Forecast accuracy (hit-rate badge) ────────────────────────────────────
+router.get('/:ticker/forecast-accuracy', requireAuth, async (req, res, next) => {
+  const ticker = String(req.params.ticker || '').toUpperCase().trim();
+  if (!validTicker(ticker)) { res.status(400).json({ error: 'Invalid ticker.' }); return; }
+  try {
+    const summary = await getAccuracySummary(ticker);
+    res.json({ ticker, accuracy: summary });
+  } catch (err) { next(err); }
+});
+
 // Expanded news feed for a specific ticker — used by the dedicated News page.
 router.get('/:ticker/news', requireAuth, async (req, res, next) => {
   const ticker = String(req.params.ticker || '').toUpperCase().trim();

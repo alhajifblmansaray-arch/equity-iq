@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Star } from 'lucide-react';
+import { Star } from '../lib/icons';
 import { useWatchlist } from '../contexts/WatchlistContext';
 
 export default function WatchlistButton({ ticker }: { ticker: string }) {
@@ -29,7 +29,7 @@ export default function WatchlistButton({ ticker }: { ticker: string }) {
           : 'bg-cream-tint text-ink-secondary hover:text-ink hover:bg-white'
       }`}
     >
-      <Star size={13} fill={active ? 'currentColor' : 'none'} strokeWidth={1.8} />
+      <Star size={13} weight={active ? 'fill' : 'regular'} />
       {active ? 'Saved' : 'Save'}
     </button>
   );
