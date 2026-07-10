@@ -22,9 +22,7 @@ export interface ITradeJournal extends Document {
   status: 'open' | 'closed';
 
   // Entry
-  entryPrice: number;
   entryDate: Date;
-  size: number; // shares or contracts
   thesis: string;
   setupTags: SetupTag[];
   catalystTags: CatalystTag[];
@@ -33,11 +31,24 @@ export interface ITradeJournal extends Document {
   stopLoss?: number;
   targetPrice?: number;
 
+  // Stock-specific
+  stockDetails?: {
+    entryPrice: number;
+    exitPrice?: number;
+    shares: number;
+  };
+
   // Option-specific
   optionDetails?: {
+    contractType: 'call' | 'put';
     strike: number;
     expiry: string;
-    contractType: 'call' | 'put';
+    contracts: number;
+    multiplier: number; // usually 100
+    entryPremium: number;  // price PAID per share basis (e.g. 0.45)
+    exitPremium?: number;  // price RECEIVED per share basis
+    underlyingPriceAtEntry?: number; // reference only — NOT used in P&L
+    underlyingPriceAtExit?: number;
     ivEntry?: number;
     ivExit?: number;
     deltaEntry?: number;
@@ -90,9 +101,7 @@ const TradeJournalSchema = new Schema<ITradeJournal>(
     assetType: { type: String, enum: ['stock', 'option', 'etf', 'crypto'], default: 'stock' },
     status: { type: String, enum: ['open', 'closed'], default: 'open', index: true },
 
-    entryPrice: { type: Number, required: true },
     entryDate: { type: Date, required: true },
-    size: { type: Number, required: true, min: 0 },
     thesis: { type: String, default: '' },
     setupTags: [{ type: String }],
     catalystTags: [{ type: String }],
@@ -101,10 +110,22 @@ const TradeJournalSchema = new Schema<ITradeJournal>(
     stopLoss: Number,
     targetPrice: Number,
 
+    stockDetails: {
+      entryPrice: Number,
+      exitPrice: Number,
+      shares: Number,
+    },
+
     optionDetails: {
+      contractType: { type: String, enum: ['call', 'put'] },
       strike: Number,
       expiry: String,
-      contractType: { type: String, enum: ['call', 'put'] },
+      contracts: Number,
+      multiplier: { type: Number, default: 100 },
+      entryPremium: Number,
+      exitPremium: Number,
+      underlyingPriceAtEntry: Number,
+      underlyingPriceAtExit: Number,
       ivEntry: Number,
       ivExit: Number,
       deltaEntry: Number,

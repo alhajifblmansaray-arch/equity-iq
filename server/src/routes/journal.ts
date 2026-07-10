@@ -14,9 +14,7 @@ function sanitize(t: ITradeJournal) {
     direction: t.direction,
     assetType: t.assetType,
     status: t.status,
-    entryPrice: t.entryPrice,
     entryDate: t.entryDate?.toISOString(),
-    size: t.size,
     thesis: t.thesis,
     setupTags: t.setupTags,
     catalystTags: t.catalystTags,
@@ -24,13 +22,13 @@ function sanitize(t: ITradeJournal) {
     convictionLevel: t.convictionLevel,
     stopLoss: t.stopLoss,
     targetPrice: t.targetPrice,
+    stockDetails: t.stockDetails,
     optionDetails: t.optionDetails,
     technicalSnapshotEntry: t.technicalSnapshotEntry,
     linkedResearchId: t.linkedResearchId,
     linkedForecastId: t.linkedForecastId,
     linkedAlertId: t.linkedAlertId,
     agreedWithForecast: t.agreedWithForecast,
-    exitPrice: t.exitPrice,
     exitDate: t.exitDate?.toISOString(),
     fees: t.fees,
     emotionalStateExit: t.emotionalStateExit,
@@ -50,9 +48,7 @@ const entrySchema = z.object({
   ticker: z.string().regex(/^[A-Z0-9.\-]{1,10}$/i),
   direction: z.enum(['long', 'short']),
   assetType: z.enum(['stock', 'option', 'etf', 'crypto']).default('stock'),
-  entryPrice: z.number().positive(),
   entryDate: z.string(),
-  size: z.number().positive(),
   thesis: z.string().max(2000).default(''),
   setupTags: z.array(z.string()).default([]),
   catalystTags: z.array(z.string()).default([]),
@@ -60,10 +56,18 @@ const entrySchema = z.object({
   convictionLevel: z.number().min(1).max(5).default(3),
   stopLoss: z.number().positive().optional(),
   targetPrice: z.number().positive().optional(),
+  stockDetails: z.object({
+    entryPrice: z.number().positive(),
+    shares: z.number().positive(),
+  }).optional(),
   optionDetails: z.object({
-    strike: z.number(),
-    expiry: z.string(),
     contractType: z.enum(['call', 'put']),
+    strike: z.number().positive(),
+    expiry: z.string(),
+    contracts: z.number().positive(),
+    multiplier: z.number().default(100),
+    entryPremium: z.number().positive(),
+    underlyingPriceAtEntry: z.number().optional(),
     ivEntry: z.number().optional(),
     deltaEntry: z.number().optional(),
     thetaEntry: z.number().optional(),
@@ -83,7 +87,6 @@ const entrySchema = z.object({
 });
 
 const closeSchema = z.object({
-  exitPrice: z.number().positive(),
   exitDate: z.string(),
   fees: z.number().min(0).default(0),
   emotionalStateExit: z.string().optional(),
@@ -91,6 +94,11 @@ const closeSchema = z.object({
   mistakeTags: z.array(z.string()).default([]),
   didFollowThesis: z.boolean().optional(),
   reviewNotes: z.string().max(2000).optional(),
+  // Stock exit
+  exitPrice: z.number().positive().optional(),
+  // Option exit
+  exitPremium: z.number().positive().optional(),
+  underlyingPriceAtExit: z.number().optional(),
   ivExit: z.number().optional(),
 });
 
@@ -198,7 +206,6 @@ router.patch('/:id/close', async (req, res, next) => {
     if (!trade) { res.status(404).json({ error: 'Trade not found.' }); return; }
 
     const d = parsed.data;
-    trade.exitPrice = d.exitPrice;
     trade.exitDate = new Date(d.exitDate);
     trade.fees = d.fees;
     trade.emotionalStateExit = d.emotionalStateExit as any;
@@ -207,18 +214,38 @@ router.patch('/:id/close', async (req, res, next) => {
     trade.didFollowThesis = d.didFollowThesis;
     trade.reviewNotes = d.reviewNotes;
     trade.status = 'closed';
-    if (d.ivExit && trade.optionDetails) trade.optionDetails.ivExit = d.ivExit;
 
-    // Compute P&L
     const dir = trade.direction === 'long' ? 1 : -1;
-    const gross = (d.exitPrice - trade.entryPrice) * dir * trade.size;
-    trade.realizedPnl = gross - (d.fees ?? 0);
-    trade.realizedPnlPct = ((d.exitPrice - trade.entryPrice) / trade.entryPrice) * dir * 100;
-    if (trade.stopLoss) {
-      const risk = Math.abs(trade.entryPrice - trade.stopLoss) * trade.size;
-      trade.rMultiple = risk > 0 ? trade.realizedPnl / risk : undefined;
+
+    if (trade.assetType === 'option' && trade.optionDetails) {
+      const { entryPremium, contracts, multiplier = 100 } = trade.optionDetails;
+      const exitPremium = d.exitPremium;
+      if (exitPremium == null) { res.status(400).json({ error: 'exitPremium is required for option trades.' }); return; }
+      trade.optionDetails.exitPremium = exitPremium;
+      if (d.underlyingPriceAtExit) trade.optionDetails.underlyingPriceAtExit = d.underlyingPriceAtExit;
+      if (d.ivExit) trade.optionDetails.ivExit = d.ivExit;
+      const gross = dir * (exitPremium - entryPremium) * contracts * multiplier;
+      trade.realizedPnl = gross - (d.fees ?? 0);
+      trade.realizedPnlPct = ((exitPremium - entryPremium) / entryPremium) * dir * 100;
+      if (trade.stopLoss) {
+        const risk = Math.abs(entryPremium - trade.stopLoss) * contracts * multiplier;
+        trade.rMultiple = risk > 0 ? trade.realizedPnl / risk : undefined;
+      }
+    } else if (trade.stockDetails) {
+      const { entryPrice, shares } = trade.stockDetails;
+      const exitPrice = d.exitPrice;
+      if (exitPrice == null) { res.status(400).json({ error: 'exitPrice is required for stock trades.' }); return; }
+      trade.stockDetails.exitPrice = exitPrice;
+      const gross = dir * (exitPrice - entryPrice) * shares;
+      trade.realizedPnl = gross - (d.fees ?? 0);
+      trade.realizedPnlPct = ((exitPrice - entryPrice) / entryPrice) * dir * 100;
+      if (trade.stopLoss) {
+        const risk = Math.abs(entryPrice - trade.stopLoss) * shares;
+        trade.rMultiple = risk > 0 ? trade.realizedPnl / risk : undefined;
+      }
     }
-    const ms = trade.exitDate.getTime() - trade.entryDate.getTime();
+
+    const ms = trade.exitDate!.getTime() - trade.entryDate.getTime();
     trade.holdingPeriodDays = Math.round(ms / 86_400_000);
 
     await trade.save();

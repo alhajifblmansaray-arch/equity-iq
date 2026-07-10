@@ -573,9 +573,7 @@ export interface TradeEntry {
   direction: TradeDirection;
   assetType: TradeAssetType;
   status: TradeStatus;
-  entryPrice: number;
   entryDate: string;
-  size: number;
   thesis: string;
   setupTags: SetupTag[];
   catalystTags: CatalystTag[];
@@ -583,10 +581,23 @@ export interface TradeEntry {
   convictionLevel: number;
   stopLoss?: number;
   targetPrice?: number;
+  // Stock fields
+  stockDetails?: {
+    entryPrice: number;
+    exitPrice?: number;
+    shares: number;
+  };
+  // Option fields — P&L uses premium × contracts × multiplier, NOT underlying price
   optionDetails?: {
+    contractType: 'call' | 'put';
     strike: number;
     expiry: string;
-    contractType: 'call' | 'put';
+    contracts: number;
+    multiplier: number;
+    entryPremium: number;
+    exitPremium?: number;
+    underlyingPriceAtEntry?: number; // reference only
+    underlyingPriceAtExit?: number;
     ivEntry?: number;
     ivExit?: number;
     deltaEntry?: number;
@@ -604,7 +615,6 @@ export interface TradeEntry {
   linkedForecastId?: string;
   linkedAlertId?: string;
   agreedWithForecast?: boolean | null;
-  exitPrice?: number;
   exitDate?: string;
   fees?: number;
   emotionalStateExit?: EmotionalState;

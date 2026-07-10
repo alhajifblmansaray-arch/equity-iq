@@ -93,9 +93,7 @@ function LogForm({ prefillTicker = '', onSave, onClose }: LogFormProps) {
   const [ticker, setTicker] = useState(prefillTicker.toUpperCase());
   const [direction, setDirection] = useState<'long' | 'short'>('long');
   const [assetType, setAssetType] = useState<'stock' | 'option' | 'etf' | 'crypto'>('stock');
-  const [entryPrice, setEntryPrice] = useState('');
   const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 16));
-  const [size, setSize] = useState('');
   const [thesis, setThesis] = useState('');
   const [setupTags, setSetupTags] = useState<SetupTag[]>([]);
   const [catalystTags, setCatalystTags] = useState<CatalystTag[]>([]);
@@ -104,8 +102,23 @@ function LogForm({ prefillTicker = '', onSave, onClose }: LogFormProps) {
   const [stopLoss, setStopLoss] = useState('');
   const [target, setTarget] = useState('');
   const [agreedWithForecast, setAgreedWithForecast] = useState<boolean | null>(null);
+
+  // Stock fields
+  const [entryPrice, setEntryPrice] = useState('');
+  const [shares, setShares] = useState('');
+
+  // Option fields
+  const [contractType, setContractType] = useState<'call' | 'put'>('call');
+  const [strike, setStrike] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [contracts, setContracts] = useState('1');
+  const [entryPremium, setEntryPremium] = useState('');
+  const [underlyingAtEntry, setUnderlyingAtEntry] = useState('');
+
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+
+  const isOption = assetType === 'option';
 
   const toggleSetup = (t: SetupTag) =>
     setSetupTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
@@ -114,7 +127,15 @@ function LogForm({ prefillTicker = '', onSave, onClose }: LogFormProps) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!ticker || !entryPrice || !size) { setErr('Ticker, entry price, and size are required.'); return; }
+    if (!ticker) { setErr('Ticker is required.'); return; }
+    if (isOption && (!entryPremium || !contracts || !strike || !expiry)) {
+      setErr('Premium, contracts, strike, and expiry are required for options.');
+      return;
+    }
+    if (!isOption && (!entryPrice || !shares)) {
+      setErr('Entry price and shares are required.');
+      return;
+    }
     setSaving(true);
     setErr('');
     try {
@@ -122,9 +143,7 @@ function LogForm({ prefillTicker = '', onSave, onClose }: LogFormProps) {
         ticker: ticker.toUpperCase(),
         direction,
         assetType,
-        entryPrice: Number(entryPrice),
         entryDate,
-        size: Number(size),
         thesis,
         setupTags,
         catalystTags,
@@ -133,6 +152,22 @@ function LogForm({ prefillTicker = '', onSave, onClose }: LogFormProps) {
         stopLoss: stopLoss ? Number(stopLoss) : undefined,
         targetPrice: target ? Number(target) : undefined,
         agreedWithForecast,
+        ...(isOption ? {
+          optionDetails: {
+            contractType,
+            strike: Number(strike),
+            expiry,
+            contracts: Number(contracts),
+            multiplier: 100,
+            entryPremium: Number(entryPremium),
+            underlyingPriceAtEntry: underlyingAtEntry ? Number(underlyingAtEntry) : undefined,
+          },
+        } : {
+          stockDetails: {
+            entryPrice: Number(entryPrice),
+            shares: Number(shares),
+          },
+        }),
       });
       onSave(trade);
     } catch {
@@ -159,16 +194,8 @@ function LogForm({ prefillTicker = '', onSave, onClose }: LogFormProps) {
           <label className="block text-xs font-medium text-ink-secondary mb-1">Direction</label>
           <div className="flex rounded-xl overflow-hidden border border-glass-border">
             {(['long', 'short'] as const).map(d => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => setDirection(d)}
-                className={`flex-1 py-2 text-sm font-medium transition-all ${
-                  direction === d
-                    ? d === 'long' ? 'bg-forest text-white' : 'bg-brick text-white'
-                    : 'text-ink-secondary hover:bg-white/20'
-                }`}
-              >
+              <button key={d} type="button" onClick={() => setDirection(d)}
+                className={`flex-1 py-2 text-sm font-medium transition-all ${direction === d ? (d === 'long' ? 'bg-forest text-white' : 'bg-brick text-white') : 'text-ink-secondary hover:bg-white/20'}`}>
                 {d === 'long' ? '↑ Long' : '↓ Short'}
               </button>
             ))}
@@ -176,11 +203,7 @@ function LogForm({ prefillTicker = '', onSave, onClose }: LogFormProps) {
         </div>
         <div>
           <label className="block text-xs font-medium text-ink-secondary mb-1">Asset</label>
-          <select
-            className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none"
-            value={assetType}
-            onChange={e => setAssetType(e.target.value as any)}
-          >
+          <select className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={assetType} onChange={e => setAssetType(e.target.value as any)}>
             <option value="stock">Stock</option>
             <option value="option">Option</option>
             <option value="etf">ETF</option>
@@ -189,37 +212,68 @@ function LogForm({ prefillTicker = '', onSave, onClose }: LogFormProps) {
         </div>
       </div>
 
-      {/* Prices */}
-      <div className="grid grid-cols-4 gap-3">
-        {[
-          { label: 'Entry Price', val: entryPrice, set: setEntryPrice, placeholder: '190.00' },
-          { label: 'Size', val: size, set: setSize, placeholder: '100' },
-          { label: 'Stop Loss', val: stopLoss, set: setStopLoss, placeholder: '185.00' },
-          { label: 'Target', val: target, set: setTarget, placeholder: '210.00' },
-        ].map(({ label, val, set, placeholder }) => (
-          <div key={label}>
-            <label className="block text-xs font-medium text-ink-secondary mb-1">{label}</label>
-            <input
-              type="number"
-              step="0.01"
-              className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none focus:ring-2 focus:ring-forest/40"
-              value={val}
-              onChange={e => set(e.target.value)}
-              placeholder={placeholder}
-            />
+      {/* Asset-specific price fields */}
+      {isOption ? (
+        <div className="space-y-3">
+          <div className="p-3 rounded-xl bg-gold/8 border border-gold/25 text-xs text-amber-700 dark:text-amber-400">
+            P&L = (exit premium − entry premium) × contracts × 100. The underlying price is stored as context only.
           </div>
-        ))}
-      </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">Contract Type</label>
+              <div className="flex rounded-xl overflow-hidden border border-glass-border">
+                {(['call', 'put'] as const).map(ct => (
+                  <button key={ct} type="button" onClick={() => setContractType(ct)}
+                    className={`flex-1 py-2 text-sm font-medium capitalize transition-all ${contractType === ct ? 'bg-forest text-white' : 'text-ink-secondary hover:bg-white/20'}`}>
+                    {ct}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">Expiry Date</label>
+              <input type="date" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={expiry} onChange={e => setExpiry(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">Strike</label>
+              <input type="number" step="0.50" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={strike} onChange={e => setStrike(e.target.value)} placeholder="190.00" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">Entry Premium</label>
+              <input type="number" step="0.01" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={entryPremium} onChange={e => setEntryPremium(e.target.value)} placeholder="0.45" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">Contracts</label>
+              <input type="number" step="1" min="1" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={contracts} onChange={e => setContracts(e.target.value)} placeholder="1" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-ink-secondary mb-1">Underlying Price at Entry <span className="text-ink-secondary/60">(optional, reference only)</span></label>
+            <input type="number" step="0.01" className="w-48 px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={underlyingAtEntry} onChange={e => setUnderlyingAtEntry(e.target.value)} placeholder="19.34" />
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            { label: 'Entry Price', val: entryPrice, set: setEntryPrice, placeholder: '190.00' },
+            { label: 'Shares', val: shares, set: setShares, placeholder: '100' },
+            { label: 'Stop Loss', val: stopLoss, set: setStopLoss, placeholder: '185.00' },
+            { label: 'Target', val: target, set: setTarget, placeholder: '210.00' },
+          ].map(({ label, val, set, placeholder }) => (
+            <div key={label}>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">{label}</label>
+              <input type="number" step="0.01" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none focus:ring-2 focus:ring-forest/40" value={val} onChange={e => set(e.target.value)} placeholder={placeholder} />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Date */}
       <div>
         <label className="block text-xs font-medium text-ink-secondary mb-1">Entry Date & Time</label>
-        <input
-          type="datetime-local"
-          className="px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none"
-          value={entryDate}
-          onChange={e => setEntryDate(e.target.value)}
-        />
+        <input type="datetime-local" className="px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={entryDate} onChange={e => setEntryDate(e.target.value)} />
       </div>
 
       {/* Thesis */}
@@ -326,7 +380,10 @@ function LogForm({ prefillTicker = '', onSave, onClose }: LogFormProps) {
 
 // ── Close trade form ──────────────────────────────────────────────────────────
 function CloseForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: TradeEntry) => void; onClose: () => void }) {
-  const [exitPrice, setExitPrice] = useState('');
+  const isOption = trade.assetType === 'option';
+  const [exitPrice, setExitPrice] = useState('');       // stock
+  const [exitPremium, setExitPremium] = useState('');   // option
+  const [underlyingAtExit, setUnderlyingAtExit] = useState('');
   const [exitDate, setExitDate] = useState(new Date().toISOString().slice(0, 16));
   const [fees, setFees] = useState('0');
   const [emotionalExit, setEmotionalExit] = useState<EmotionalState>('calm');
@@ -341,18 +398,27 @@ function CloseForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: 
     setMistakeTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
 
   // Live P&L preview
-  const preview = exitPrice
-    ? (Number(exitPrice) - trade.entryPrice) * (trade.direction === 'long' ? 1 : -1) * trade.size - Number(fees || 0)
-    : null;
+  const dir = trade.direction === 'long' ? 1 : -1;
+  let preview: number | null = null;
+  if (isOption && exitPremium && trade.optionDetails) {
+    const { entryPremium, contracts, multiplier = 100 } = trade.optionDetails;
+    preview = dir * (Number(exitPremium) - entryPremium) * contracts * multiplier - Number(fees || 0);
+  } else if (!isOption && exitPrice && trade.stockDetails) {
+    preview = dir * (Number(exitPrice) - trade.stockDetails.entryPrice) * trade.stockDetails.shares - Number(fees || 0);
+  }
+
+  const entryLabel = isOption
+    ? `${trade.ticker} ${trade.optionDetails?.contractType?.toUpperCase()} $${trade.optionDetails?.strike} exp ${trade.optionDetails?.expiry} — ${trade.optionDetails?.contracts}c @ $${trade.optionDetails?.entryPremium} premium`
+    : `${trade.ticker} ${trade.direction} ${trade.stockDetails?.shares} shares @ $${trade.stockDetails?.entryPrice}`;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!exitPrice) { setErr('Exit price is required.'); return; }
+    if (isOption && !exitPremium) { setErr('Exit premium is required.'); return; }
+    if (!isOption && !exitPrice) { setErr('Exit price is required.'); return; }
     setSaving(true);
     setErr('');
     try {
       const updated = await journalApi.close(trade.id, {
-        exitPrice: Number(exitPrice),
         exitDate,
         fees: Number(fees || 0),
         emotionalStateExit: emotionalExit,
@@ -360,6 +426,12 @@ function CloseForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: 
         mistakeTags,
         didFollowThesis: didFollow ?? undefined,
         reviewNotes,
+        ...(isOption ? {
+          exitPremium: Number(exitPremium),
+          underlyingPriceAtExit: underlyingAtExit ? Number(underlyingAtExit) : undefined,
+        } : {
+          exitPrice: Number(exitPrice),
+        }),
       } as any);
       onSave(updated);
     } catch {
@@ -372,9 +444,9 @@ function CloseForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: 
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="p-3 rounded-xl bg-white/10 border border-glass-border text-sm">
-        <div className="flex justify-between">
+        <div className="flex justify-between gap-2">
           <span className="text-ink-secondary">Trade</span>
-          <span className="font-medium font-mono">{trade.ticker} {trade.direction} @ ${trade.entryPrice}</span>
+          <span className="font-medium font-mono text-right text-xs">{entryLabel}</span>
         </div>
         {preview !== null && (
           <div className="flex justify-between mt-1">
@@ -384,16 +456,34 @@ function CloseForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: 
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <div className="col-span-2">
-          <label className="block text-xs font-medium text-ink-secondary mb-1">Exit Price</label>
-          <input type="number" step="0.01" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={exitPrice} onChange={e => setExitPrice(e.target.value)} placeholder="195.00" />
+      {isOption ? (
+        <div className="space-y-3">
+          <div className="p-2.5 rounded-xl bg-gold/8 border border-gold/25 text-xs text-amber-700 dark:text-amber-400">
+            Enter the exit premium (price per share you sold the contract for), not the underlying stock price.
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">Exit Premium</label>
+              <input type="number" step="0.01" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={exitPremium} onChange={e => setExitPremium(e.target.value)} placeholder="0.86" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">Underlying Price at Exit <span className="text-ink-secondary/60">(optional)</span></label>
+              <input type="number" step="0.01" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={underlyingAtExit} onChange={e => setUnderlyingAtExit(e.target.value)} placeholder="18.94" />
+            </div>
+          </div>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-ink-secondary mb-1">Fees</label>
-          <input type="number" step="0.01" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={fees} onChange={e => setFees(e.target.value)} />
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2">
+            <label className="block text-xs font-medium text-ink-secondary mb-1">Exit Price</label>
+            <input type="number" step="0.01" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={exitPrice} onChange={e => setExitPrice(e.target.value)} placeholder="195.00" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-ink-secondary mb-1">Fees</label>
+            <input type="number" step="0.01" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={fees} onChange={e => setFees(e.target.value)} />
+          </div>
         </div>
-      </div>
+      )}
 
       <div>
         <label className="block text-xs font-medium text-ink-secondary mb-1">Exit Date & Time</label>
@@ -505,9 +595,11 @@ function TradeRow({ trade, onClose, onDelete }: { trade: TradeEntry; onClose: (t
               <p className={`font-semibold text-sm ${pnlColor(pnl)}`}>{pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}</p>
               {pnlPct != null && <p className={`text-xs ${pnlColor(pnl)}`}>{fmtPct(pnlPct)}</p>}
             </>
-          ) : (
-            <p className="text-sm text-ink-secondary font-mono">${trade.entryPrice.toFixed(2)}</p>
-          )}
+          ) : trade.assetType === 'option' && trade.optionDetails ? (
+            <p className="text-sm text-ink-secondary font-mono">${trade.optionDetails.entryPremium} × {trade.optionDetails.contracts}c</p>
+          ) : trade.stockDetails ? (
+            <p className="text-sm text-ink-secondary font-mono">${trade.stockDetails.entryPrice.toFixed(2)}</p>
+          ) : null}
         </div>
 
         <div className="text-ink-secondary ml-1">
@@ -529,12 +621,18 @@ function TradeRow({ trade, onClose, onDelete }: { trade: TradeEntry; onClose: (t
               {/* Metrics grid */}
               <div className="grid grid-cols-3 gap-3 text-xs">
                 {[
-                  { label: 'Entry', val: `$${trade.entryPrice}` },
-                  { label: 'Size', val: `${trade.size} ${trade.assetType === 'option' ? 'contracts' : 'shares'}` },
+                  trade.assetType === 'option' && trade.optionDetails
+                    ? { label: 'Premium', val: `$${trade.optionDetails.entryPremium} × ${trade.optionDetails.contracts}c` }
+                    : { label: 'Entry', val: `$${trade.stockDetails?.entryPrice ?? '—'}` },
+                  trade.assetType === 'option' && trade.optionDetails
+                    ? { label: 'Strike / Exp', val: `$${trade.optionDetails.strike} ${trade.optionDetails.expiry}` }
+                    : { label: 'Shares', val: `${trade.stockDetails?.shares ?? '—'}` },
                   { label: 'Date', val: new Date(trade.entryDate).toLocaleDateString() },
-                  ...(trade.exitPrice ? [
-                    { label: 'Exit', val: `$${trade.exitPrice}` },
-                    { label: 'Held', val: `${trade.holdingPeriodDays}d` },
+                  ...(trade.status === 'closed' ? [
+                    trade.assetType === 'option' && trade.optionDetails?.exitPremium != null
+                      ? { label: 'Exit Premium', val: `$${trade.optionDetails.exitPremium}` }
+                      : { label: 'Exit', val: trade.stockDetails?.exitPrice != null ? `$${trade.stockDetails.exitPrice}` : '—' },
+                    { label: 'Held', val: `${trade.holdingPeriodDays ?? '—'}d` },
                     { label: 'R-Multiple', val: trade.rMultiple != null ? `${trade.rMultiple.toFixed(2)}R` : '—' },
                   ] : [
                     { label: 'Stop', val: trade.stopLoss ? `$${trade.stopLoss}` : '—' },
