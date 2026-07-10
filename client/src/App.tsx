@@ -17,6 +17,7 @@ import Learn from './pages/Learn';
 import Simulator from './pages/Simulator';
 import Challenge from './pages/Challenge';
 import Profile from './pages/Profile';
+import Journal from './pages/Journal';
 
 function FullScreenLoader() {
   return (
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="/simulator" element={<Simulator />} />
         <Route path="/challenge" element={<Challenge />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/journal" element={<Journal />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

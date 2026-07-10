@@ -206,6 +206,18 @@ export const profile = {
   },
 };
 
+export const journal = {
+  list: (params?: { status?: string; ticker?: string }) =>
+    api.get<{ trades: import('../types').TradeEntry[] }>('/journal', { params }).then((r) => r.data.trades),
+  stats: () =>
+    api.get<import('../types').JournalStats>('/journal/stats').then((r) => r.data),
+  create: (payload: Partial<import('../types').TradeEntry>) =>
+    api.post<{ trade: import('../types').TradeEntry }>('/journal', payload).then((r) => r.data.trade),
+  close: (id: string, payload: Partial<import('../types').TradeEntry>) =>
+    api.patch<{ trade: import('../types').TradeEntry }>(`/journal/${id}/close`, payload).then((r) => r.data.trade),
+  remove: (id: string) => api.delete(`/journal/${id}`).then(() => undefined),
+};
+
 export const watchlist = {
   get: () => api.get<{ watchlist: string[] }>('/user/watchlist').then((r) => r.data.watchlist),
   add: (ticker: string) =>

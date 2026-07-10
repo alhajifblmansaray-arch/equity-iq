@@ -18,6 +18,7 @@ import simulatorRoutes from './routes/simulator';
 import learnRoutes from './routes/learn';
 import challengeRoutes from './routes/challenge';
 import profileRoutes from './routes/profile';
+import journalRoutes from './routes/journal';
 import { startAlertChecker } from './services/alertChecker';
 import { resolveDueForecasts } from './services/forecastTracker';
 import { startLimitOrderChecker } from './services/limitOrderChecker';
@@ -85,6 +86,7 @@ async function main(): Promise<void> {
   app.use('/api/learn', learnRoutes);
   app.use('/api/challenge', challengeRoutes);
   app.use('/api/profile', profileRoutes);
+  app.use('/api/journal', journalRoutes);
 
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Unhandled error:', err);

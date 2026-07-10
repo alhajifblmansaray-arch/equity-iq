@@ -92,6 +92,8 @@ export {
 
   // Misc
   Brain,
+  NotePencil as NotebookPen,
+  PencilSimpleLine as PenLine,
   Globe,
   Globe as Globe2,
   Bank as Landmark,

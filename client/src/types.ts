@@ -550,3 +550,89 @@ export interface Outlook {
   };
   summary: string;
 }
+
+/* ── Trade Journal ─────────────────────────────────────────────────────────── */
+
+export type TradeDirection = 'long' | 'short';
+export type TradeAssetType = 'stock' | 'option' | 'etf' | 'crypto';
+export type TradeStatus = 'open' | 'closed';
+export type SetupTag =
+  | 'breakout' | 'earnings_play' | 'dip_buy' | 'momentum'
+  | 'mean_reversion' | 'options_income' | 'swing' | 'scalp' | 'macro';
+export type CatalystTag =
+  | 'earnings' | 'news' | 'technical_level' | 'macro'
+  | 'insider_activity' | 'social_sentiment' | 'analyst_upgrade' | 'sector_rotation';
+export type MistakeTag =
+  | 'fomo_entry' | 'revenge_trade' | 'ignored_stop' | 'oversized_position'
+  | 'no_thesis' | 'held_too_long' | 'sold_too_early' | 'chased_entry';
+export type EmotionalState = 'calm' | 'confident' | 'anxious' | 'uncertain' | 'impatient' | 'euphoric';
+
+export interface TradeEntry {
+  id: string;
+  ticker: string;
+  direction: TradeDirection;
+  assetType: TradeAssetType;
+  status: TradeStatus;
+  entryPrice: number;
+  entryDate: string;
+  size: number;
+  thesis: string;
+  setupTags: SetupTag[];
+  catalystTags: CatalystTag[];
+  emotionalStateEntry: EmotionalState;
+  convictionLevel: number;
+  stopLoss?: number;
+  targetPrice?: number;
+  optionDetails?: {
+    strike: number;
+    expiry: string;
+    contractType: 'call' | 'put';
+    ivEntry?: number;
+    ivExit?: number;
+    deltaEntry?: number;
+    thetaEntry?: number;
+    dteEntry?: number;
+  };
+  technicalSnapshotEntry?: {
+    price: number;
+    rsi?: number;
+    sma50?: number;
+    sma200?: number;
+    macdHistogram?: number;
+  };
+  linkedResearchId?: string;
+  linkedForecastId?: string;
+  linkedAlertId?: string;
+  agreedWithForecast?: boolean | null;
+  exitPrice?: number;
+  exitDate?: string;
+  fees?: number;
+  emotionalStateExit?: EmotionalState;
+  exitReason?: string;
+  mistakeTags?: MistakeTag[];
+  realizedPnl?: number;
+  realizedPnlPct?: number;
+  rMultiple?: number;
+  holdingPeriodDays?: number;
+  didFollowThesis?: boolean;
+  reviewNotes?: string;
+  createdAt: string;
+}
+
+export interface JournalStats {
+  totalTrades: number;
+  openTrades?: number;
+  winRate: number;
+  totalPnl: number;
+  avgWin: number;
+  avgLoss: number;
+  profitFactor: number | null;
+  bySetup: Record<string, { trades: number; wins: number; pnl: number }>;
+  mistakeCount: Record<string, number>;
+  forecastEdge: {
+    agreedWinRate: number | null;
+    fadedWinRate: number | null;
+    agreedTotal: number;
+    fadedTotal: number;
+  };
+}

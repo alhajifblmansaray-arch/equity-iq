@@ -11,6 +11,7 @@ import {
   LogOut,
   Menu,
   Newspaper,
+  NotebookPen,
   Star,
   Trophy,
   TrendingUp,
@@ -31,6 +32,7 @@ const NAV_MAIN: Array<{ to: string; label: string; icon: React.ReactNode }> = [
   { to: '/news', label: 'News', icon: <Newspaper size={18} /> },
   { to: '/calendar', label: 'Earnings', icon: <CalendarDays size={18} /> },
   { to: '/alerts', label: 'Alerts', icon: <Bell size={18} /> },
+  { to: '/journal', label: 'Journal', icon: <NotebookPen size={18} /> },
 ];
 
 const NAV_LEARN: Array<{ to: string; label: string; icon: React.ReactNode; badge?: string }> = [
