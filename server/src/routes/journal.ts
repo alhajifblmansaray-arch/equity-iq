@@ -400,7 +400,7 @@ router.patch('/:id', async (req, res, next) => {
     if (!trade) { res.status(404).json({ error: 'Trade not found.' }); return; }
 
     const allowed = [
-      'thesis', 'setupTags', 'catalystTags', 'emotionalStateEntry', 'convictionLevel',
+      'direction', 'thesis', 'setupTags', 'catalystTags', 'emotionalStateEntry', 'convictionLevel',
       'stopLoss', 'targetPrice', 'agreedWithForecast', 'entryDate',
       'stockDetails', 'optionDetails', 'exitReason', 'mistakeTags',
       'emotionalStateExit', 'didFollowThesis', 'reviewNotes', 'fees',

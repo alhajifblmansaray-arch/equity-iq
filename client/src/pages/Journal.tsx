@@ -562,6 +562,9 @@ function CloseForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: 
 function EditForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: TradeEntry) => void; onClose: () => void }) {
   const isOption = trade.assetType === 'option';
 
+  // Direction (applies to all trade types)
+  const [direction, setDirection] = useState<'long' | 'short'>(trade.direction ?? 'long');
+
   // Shared fields
   const [thesis, setThesis] = useState(trade.thesis ?? '');
   const [setupTags, setSetupTags] = useState<SetupTag[]>((trade.setupTags ?? []) as SetupTag[]);
@@ -576,12 +579,15 @@ function EditForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: T
   const [mistakeTags, setMistakeTags] = useState<MistakeTag[]>((trade.mistakeTags ?? []) as MistakeTag[]);
   const [fees, setFees] = useState(trade.fees?.toString() ?? '0');
 
-  // Stock price fields (editable if open; exit only if closed)
+  // Stock price fields
   const [entryPrice, setEntryPrice] = useState(trade.stockDetails?.entryPrice?.toString() ?? '');
   const [shares, setShares] = useState(trade.stockDetails?.shares?.toString() ?? '');
   const [exitPrice, setExitPrice] = useState(trade.stockDetails?.exitPrice?.toString() ?? '');
 
-  // Option premium fields
+  // Option fields — all four required for options
+  const [contractType, setContractType] = useState<'call' | 'put'>(trade.optionDetails?.contractType ?? 'call');
+  const [strike, setStrike] = useState(trade.optionDetails?.strike?.toString() ?? '');
+  const [expiry, setExpiry] = useState(trade.optionDetails?.expiry ?? '');
   const [entryPremium, setEntryPremium] = useState(trade.optionDetails?.entryPremium?.toString() ?? '');
   const [exitPremium, setExitPremium] = useState(trade.optionDetails?.exitPremium?.toString() ?? '');
   const [contracts, setContracts] = useState(trade.optionDetails?.contracts?.toString() ?? '');
@@ -598,7 +604,13 @@ function EditForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: T
     setSaving(true);
     setErr('');
     try {
+      if (isOption && (!entryPremium || !contracts || !strike || !expiry)) {
+        setErr('Premium, contracts, strike, and expiry are required for options.');
+        setSaving(false);
+        return;
+      }
       const payload: any = {
+        direction,
         thesis, setupTags, catalystTags,
         emotionalStateEntry: emotional,
         convictionLevel: conviction,
@@ -613,9 +625,13 @@ function EditForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: T
       if (isOption) {
         payload.optionDetails = {
           ...trade.optionDetails,
+          contractType,
+          strike: Number(strike),
+          expiry,
           entryPremium: Number(entryPremium),
           exitPremium: exitPremium ? Number(exitPremium) : undefined,
           contracts: Number(contracts),
+          multiplier: trade.optionDetails?.multiplier ?? 100,
         };
       } else {
         payload.stockDetails = {
@@ -635,19 +651,62 @@ function EditForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: T
 
   return (
     <form onSubmit={submit} className="space-y-4">
+      {/* Direction toggle — applies to all trade types */}
+      <div>
+        <label className="block text-xs font-medium text-ink-secondary mb-1">Direction</label>
+        <div className="flex rounded-xl overflow-hidden border border-glass-border w-fit">
+          {(['long', 'short'] as const).map(d => (
+            <button key={d} type="button" onClick={() => setDirection(d)}
+              className={`px-6 py-2 text-sm font-medium transition-all ${direction === d ? (d === 'long' ? 'bg-forest text-white' : 'bg-brick text-white') : 'text-ink-secondary hover:bg-white/20'}`}>
+              {d === 'long' ? '↑ Long' : '↓ Short'}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Price fields */}
       {isOption ? (
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Entry Premium', val: entryPremium, set: setEntryPremium },
-            { label: 'Exit Premium', val: exitPremium, set: setExitPremium },
-            { label: 'Contracts', val: contracts, set: setContracts },
-          ].map(({ label, val, set }) => (
-            <div key={label}>
-              <label className="block text-xs font-medium text-ink-secondary mb-1">{label}</label>
-              <input type="number" step="0.01" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={val} onChange={e => set(e.target.value)} />
+        <div className="space-y-3">
+          <div className="p-2.5 rounded-xl bg-gold/8 border border-gold/25 text-xs text-amber-700 dark:text-amber-400">
+            P&L = (exit premium − entry premium) × contracts × 100. Direction above determines sign.
+          </div>
+          {/* Contract type + expiry */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">Contract Type</label>
+              <div className="flex rounded-xl overflow-hidden border border-glass-border">
+                {(['call', 'put'] as const).map(ct => (
+                  <button key={ct} type="button" onClick={() => setContractType(ct)}
+                    className={`flex-1 py-2 text-sm font-medium capitalize transition-all ${contractType === ct ? 'bg-forest text-white' : 'text-ink-secondary hover:bg-white/20'}`}>
+                    {ct}
+                  </button>
+                ))}
+              </div>
             </div>
-          ))}
+            <div>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">Expiry Date</label>
+              <input type="date" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={expiry} onChange={e => setExpiry(e.target.value)} />
+            </div>
+          </div>
+          {/* Strike + premiums + contracts */}
+          <div className="grid grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">Strike</label>
+              <input type="number" step="0.50" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={strike} onChange={e => setStrike(e.target.value)} placeholder="19.00" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">Entry Premium</label>
+              <input type="number" step="0.01" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={entryPremium} onChange={e => setEntryPremium(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">Exit Premium</label>
+              <input type="number" step="0.01" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={exitPremium} onChange={e => setExitPremium(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">Contracts</label>
+              <input type="number" step="1" min="1" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={contracts} onChange={e => setContracts(e.target.value)} />
+            </div>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-3">
