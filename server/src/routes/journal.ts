@@ -253,6 +253,44 @@ router.patch('/:id/close', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// PATCH /api/journal/:id — edit any field on an existing entry (re-computes P&L if closed)
+router.patch('/:id', async (req, res, next) => {
+  try {
+    const user = req.user as IUser;
+    const trade = await TradeJournal.findOne({ _id: req.params.id, user: user.id });
+    if (!trade) { res.status(404).json({ error: 'Trade not found.' }); return; }
+
+    const allowed = [
+      'thesis', 'setupTags', 'catalystTags', 'emotionalStateEntry', 'convictionLevel',
+      'stopLoss', 'targetPrice', 'agreedWithForecast', 'entryDate',
+      'stockDetails', 'optionDetails', 'exitReason', 'mistakeTags',
+      'emotionalStateExit', 'didFollowThesis', 'reviewNotes', 'fees',
+    ];
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) (trade as any)[key] = req.body[key];
+    }
+
+    // Re-compute P&L if the trade is closed and prices changed
+    if (trade.status === 'closed') {
+      const dir = trade.direction === 'long' ? 1 : -1;
+      if (trade.assetType === 'option' && trade.optionDetails?.exitPremium != null) {
+        const { entryPremium, exitPremium, contracts, multiplier = 100 } = trade.optionDetails;
+        const gross = dir * (exitPremium - entryPremium) * contracts * multiplier;
+        trade.realizedPnl = gross - (trade.fees ?? 0);
+        trade.realizedPnlPct = ((exitPremium - entryPremium) / entryPremium) * dir * 100;
+      } else if (trade.stockDetails?.exitPrice != null) {
+        const { entryPrice, exitPrice, shares } = trade.stockDetails;
+        const gross = dir * (exitPrice - entryPrice) * shares;
+        trade.realizedPnl = gross - (trade.fees ?? 0);
+        trade.realizedPnlPct = ((exitPrice - entryPrice) / entryPrice) * dir * 100;
+      }
+    }
+
+    await trade.save();
+    res.json({ trade: sanitize(trade) });
+  } catch (err) { next(err); }
+});
+
 // DELETE /api/journal/:id
 router.delete('/:id', async (req, res, next) => {
   try {

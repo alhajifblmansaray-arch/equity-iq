@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   BookOpen, ChevronDown, ChevronUp, Plus, Target, TrendingDown,
-  TrendingUp, Trophy, X, CheckCircle2, AlertTriangle, BarChart2, Trash2,
+  TrendingUp, Trophy, X, CheckCircle2, AlertTriangle, BarChart2, Trash2, PenLine,
 } from '../lib/icons';
 import { journal as journalApi } from '../lib/api';
 import type {
@@ -547,8 +547,219 @@ function CloseForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: 
   );
 }
 
+// ── Edit form ─────────────────────────────────────────────────────────────────
+function EditForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: TradeEntry) => void; onClose: () => void }) {
+  const isOption = trade.assetType === 'option';
+
+  // Shared fields
+  const [thesis, setThesis] = useState(trade.thesis ?? '');
+  const [setupTags, setSetupTags] = useState<SetupTag[]>((trade.setupTags ?? []) as SetupTag[]);
+  const [catalystTags, setCatalystTags] = useState<CatalystTag[]>((trade.catalystTags ?? []) as CatalystTag[]);
+  const [emotional, setEmotional] = useState<EmotionalState>((trade.emotionalStateEntry ?? 'calm') as EmotionalState);
+  const [conviction, setConviction] = useState(trade.convictionLevel ?? 3);
+  const [stopLoss, setStopLoss] = useState(trade.stopLoss?.toString() ?? '');
+  const [target, setTarget] = useState(trade.targetPrice?.toString() ?? '');
+  const [agreedWithForecast, setAgreedWithForecast] = useState<boolean | null>(trade.agreedWithForecast ?? null);
+  const [reviewNotes, setReviewNotes] = useState(trade.reviewNotes ?? '');
+  const [didFollowThesis, setDidFollowThesis] = useState<boolean | null>(trade.didFollowThesis ?? null);
+  const [mistakeTags, setMistakeTags] = useState<MistakeTag[]>((trade.mistakeTags ?? []) as MistakeTag[]);
+  const [fees, setFees] = useState(trade.fees?.toString() ?? '0');
+
+  // Stock price fields (editable if open; exit only if closed)
+  const [entryPrice, setEntryPrice] = useState(trade.stockDetails?.entryPrice?.toString() ?? '');
+  const [shares, setShares] = useState(trade.stockDetails?.shares?.toString() ?? '');
+  const [exitPrice, setExitPrice] = useState(trade.stockDetails?.exitPrice?.toString() ?? '');
+
+  // Option premium fields
+  const [entryPremium, setEntryPremium] = useState(trade.optionDetails?.entryPremium?.toString() ?? '');
+  const [exitPremium, setExitPremium] = useState(trade.optionDetails?.exitPremium?.toString() ?? '');
+  const [contracts, setContracts] = useState(trade.optionDetails?.contracts?.toString() ?? '');
+
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  const toggleSetup = (t: SetupTag) => setSetupTags(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t]);
+  const toggleCatalyst = (t: CatalystTag) => setCatalystTags(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t]);
+  const toggleMistake = (t: MistakeTag) => setMistakeTags(p => p.includes(t) ? p.filter(x => x !== t) : [...p, t]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setErr('');
+    try {
+      const payload: any = {
+        thesis, setupTags, catalystTags,
+        emotionalStateEntry: emotional,
+        convictionLevel: conviction,
+        stopLoss: stopLoss ? Number(stopLoss) : undefined,
+        targetPrice: target ? Number(target) : undefined,
+        agreedWithForecast,
+        reviewNotes,
+        didFollowThesis: didFollowThesis ?? undefined,
+        mistakeTags,
+        fees: Number(fees || 0),
+      };
+      if (isOption) {
+        payload.optionDetails = {
+          ...trade.optionDetails,
+          entryPremium: Number(entryPremium),
+          exitPremium: exitPremium ? Number(exitPremium) : undefined,
+          contracts: Number(contracts),
+        };
+      } else {
+        payload.stockDetails = {
+          entryPrice: Number(entryPrice),
+          shares: Number(shares),
+          exitPrice: exitPrice ? Number(exitPrice) : undefined,
+        };
+      }
+      const updated = await journalApi.update(trade.id, payload);
+      onSave(updated);
+    } catch {
+      setErr('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      {/* Price fields */}
+      {isOption ? (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'Entry Premium', val: entryPremium, set: setEntryPremium },
+            { label: 'Exit Premium', val: exitPremium, set: setExitPremium },
+            { label: 'Contracts', val: contracts, set: setContracts },
+          ].map(({ label, val, set }) => (
+            <div key={label}>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">{label}</label>
+              <input type="number" step="0.01" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={val} onChange={e => set(e.target.value)} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'Entry Price', val: entryPrice, set: setEntryPrice },
+            { label: trade.status === 'closed' ? 'Exit Price' : 'Shares', val: trade.status === 'closed' ? exitPrice : shares, set: trade.status === 'closed' ? setExitPrice : setShares },
+            { label: trade.status === 'closed' ? 'Shares' : 'Stop Loss', val: trade.status === 'closed' ? shares : stopLoss, set: trade.status === 'closed' ? setShares : setStopLoss },
+          ].map(({ label, val, set }) => (
+            <div key={label}>
+              <label className="block text-xs font-medium text-ink-secondary mb-1">{label}</label>
+              <input type="number" step="0.01" className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={val} onChange={e => set(e.target.value)} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Thesis */}
+      <div>
+        <label className="block text-xs font-medium text-ink-secondary mb-1">Thesis</label>
+        <textarea rows={3} className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none resize-none" value={thesis} onChange={e => setThesis(e.target.value)} />
+      </div>
+
+      {/* Setup tags */}
+      <div>
+        <label className="block text-xs font-medium text-ink-secondary mb-2">Setup</label>
+        <div className="flex flex-wrap gap-1.5">
+          {SETUP_TAGS.map(t => <TagPill key={t} label={tagLabel(t)} active={setupTags.includes(t)} onClick={() => toggleSetup(t)} />)}
+        </div>
+      </div>
+
+      {/* Catalyst tags */}
+      <div>
+        <label className="block text-xs font-medium text-ink-secondary mb-2">Catalyst</label>
+        <div className="flex flex-wrap gap-1.5">
+          {CATALYST_TAGS.map(t => <TagPill key={t} label={tagLabel(t)} active={catalystTags.includes(t)} onClick={() => toggleCatalyst(t)} color="amber" />)}
+        </div>
+      </div>
+
+      {/* Mistake tags (only for closed trades) */}
+      {trade.status === 'closed' && (
+        <div>
+          <label className="block text-xs font-medium text-ink-secondary mb-2">Mistakes</label>
+          <div className="flex flex-wrap gap-1.5">
+            {MISTAKE_TAGS.map(t => <TagPill key={t} label={tagLabel(t)} active={mistakeTags.includes(t)} onClick={() => toggleMistake(t)} color="red" />)}
+          </div>
+        </div>
+      )}
+
+      {/* Emotional state + conviction */}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-medium text-ink-secondary mb-1">Emotional state at entry</label>
+          <div className="flex flex-wrap gap-1.5">
+            {EMOTIONAL_STATES.map(s => (
+              <button key={s} type="button" onClick={() => setEmotional(s)}
+                className={`px-2.5 py-0.5 rounded-full border text-xs font-medium transition-all ${emotional === s ? 'bg-ink/10 border-ink/30 text-ink' : 'border-glass-border text-ink-secondary hover:border-ink-secondary/40'}`}>
+                {tagLabel(s)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-ink-secondary mb-2">Conviction</label>
+          <ConvictionPicker value={conviction} onChange={setConviction} />
+        </div>
+      </div>
+
+      {/* Forecast agreement */}
+      <div>
+        <label className="block text-xs font-medium text-ink-secondary mb-2">AI forecast?</label>
+        <div className="flex gap-2">
+          {[{ val: true, label: '✓ Agreed' }, { val: false, label: '✗ Faded' }, { val: null, label: "Didn't check" }].map(({ val, label }) => (
+            <button key={String(val)} type="button" onClick={() => setAgreedWithForecast(val)}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${agreedWithForecast === val ? 'bg-forest/15 border-forest/40 text-forest' : 'border-glass-border text-ink-secondary hover:border-ink-secondary/40'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Thesis follow-through (closed trades) */}
+      {trade.status === 'closed' && (
+        <div>
+          <label className="block text-xs font-medium text-ink-secondary mb-2">Did thesis play out?</label>
+          <div className="flex gap-2">
+            {[{ val: true, label: 'Yes' }, { val: false, label: 'No' }].map(({ val, label }) => (
+              <button key={String(val)} type="button" onClick={() => setDidFollowThesis(val)}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${didFollowThesis === val ? 'bg-forest/15 border-forest/40 text-forest' : 'border-glass-border text-ink-secondary hover:border-ink-secondary/40'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Review notes */}
+      <div>
+        <label className="block text-xs font-medium text-ink-secondary mb-1">Review notes</label>
+        <textarea rows={2} className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none resize-none" value={reviewNotes} onChange={e => setReviewNotes(e.target.value)} placeholder="What did you learn?" />
+      </div>
+
+      {/* Fees */}
+      <div>
+        <label className="block text-xs font-medium text-ink-secondary mb-1">Fees</label>
+        <input type="number" step="0.01" className="w-32 px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none" value={fees} onChange={e => setFees(e.target.value)} />
+      </div>
+
+      {err && <p className="text-brick text-sm">{err}</p>}
+
+      <div className="flex gap-3 pt-2">
+        <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-xl bg-forest text-white font-medium text-sm disabled:opacity-50 transition-all hover:bg-forest/90">
+          {saving ? 'Saving…' : 'Save Changes'}
+        </button>
+        <button type="button" onClick={onClose} className="px-4 py-2.5 rounded-xl border border-glass-border text-sm font-medium hover:bg-white/20 transition-all">
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 // ── Trade row ──────────────────────────────────────────────────────────────────
-function TradeRow({ trade, onClose, onDelete }: { trade: TradeEntry; onClose: (t: TradeEntry) => void; onDelete: (id: string) => void }) {
+function TradeRow({ trade, onClose, onEdit, onDelete }: { trade: TradeEntry; onClose: (t: TradeEntry) => void; onEdit: (t: TradeEntry) => void; onDelete: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const isOpen = trade.status === 'open';
   const pnl = trade.realizedPnl;
@@ -685,19 +896,16 @@ function TradeRow({ trade, onClose, onDelete }: { trade: TradeEntry; onClose: (t
               )}
 
               {/* Actions */}
-              <div className="flex gap-2 pt-1">
+              <div className="flex gap-2 pt-1 flex-wrap">
                 {isOpen && (
-                  <button
-                    onClick={() => onClose(trade)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-forest/15 text-forest border border-forest/30 text-xs font-medium hover:bg-forest/25 transition-all"
-                  >
+                  <button onClick={() => onClose(trade)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-forest/15 text-forest border border-forest/30 text-xs font-medium hover:bg-forest/25 transition-all">
                     <CheckCircle2 size={12} /> Close trade
                   </button>
                 )}
-                <button
-                  onClick={() => onDelete(trade.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brick/10 text-brick border border-brick/20 text-xs font-medium hover:bg-brick/20 transition-all"
-                >
+                <button onClick={() => onEdit(trade)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/20 text-ink-secondary border border-glass-border text-xs font-medium hover:bg-white/30 transition-all">
+                  <PenLine size={12} /> Edit
+                </button>
+                <button onClick={() => onDelete(trade.id)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brick/10 text-brick border border-brick/20 text-xs font-medium hover:bg-brick/20 transition-all">
                   <Trash2 size={12} /> Delete
                 </button>
               </div>
@@ -782,7 +990,7 @@ function StatsDashboard({ stats }: { stats: JournalStats }) {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-type Modal = { type: 'log' } | { type: 'close'; trade: TradeEntry } | null;
+type Modal = { type: 'log' } | { type: 'close'; trade: TradeEntry } | { type: 'edit'; trade: TradeEntry } | null;
 
 export default function Journal() {
   const [trades, setTrades] = useState<TradeEntry[]>([]);
@@ -882,6 +1090,7 @@ export default function Journal() {
                 key={trade.id}
                 trade={trade}
                 onClose={t => setModal({ type: 'close', trade: t })}
+                onEdit={t => setModal({ type: 'edit', trade: t })}
                 onDelete={handleDelete}
               />
             ))}
@@ -909,7 +1118,7 @@ export default function Journal() {
             >
               <div className="flex items-center justify-between mb-5">
                 <h2 className="font-semibold text-ink">
-                  {modal.type === 'log' ? 'Log a Trade' : `Close ${modal.trade.ticker}`}
+                  {modal.type === 'log' ? 'Log a Trade' : modal.type === 'edit' ? `Edit ${modal.trade.ticker}` : `Close ${modal.trade.ticker}`}
                 </h2>
                 <button onClick={() => setModal(null)} className="p-1.5 rounded-full hover:bg-white/20 transition-all text-ink-secondary">
                   <X size={16} />
@@ -917,6 +1126,8 @@ export default function Journal() {
               </div>
               {modal.type === 'log' ? (
                 <LogForm onSave={handleSaved} onClose={() => setModal(null)} />
+              ) : modal.type === 'edit' ? (
+                <EditForm trade={modal.trade} onSave={handleSaved} onClose={() => setModal(null)} />
               ) : (
                 <CloseForm trade={modal.trade} onSave={handleSaved} onClose={() => setModal(null)} />
               )}
