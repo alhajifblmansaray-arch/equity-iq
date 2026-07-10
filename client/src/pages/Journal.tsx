@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   BookOpen, ChevronDown, ChevronUp, Plus, Target, TrendingDown,
@@ -6,8 +7,9 @@ import {
 } from '../lib/icons';
 import { journal as journalApi } from '../lib/api';
 import type {
-  TradeEntry, JournalStats, SetupTag, CatalystTag, MistakeTag, EmotionalState,
+  TradeEntry, JournalStats, SetupTag, CatalystTag, MistakeTag, EmotionalState, ParsedTrade,
 } from '../types';
+import QuickLogModal from '../components/QuickLogModal';
 import { fmtPrice } from '../lib/helpers';
 
 const EASE = [0.16, 1, 0.3, 1] as [number, number, number, number];
@@ -85,17 +87,19 @@ function ConvictionPicker({ value, onChange }: { value: number; onChange: (v: nu
 // ── Log trade form ────────────────────────────────────────────────────────────
 interface LogFormProps {
   prefillTicker?: string;
+  prefill?: ParsedTrade;
   onSave: (t: TradeEntry) => void;
   onClose: () => void;
 }
 
-function LogForm({ prefillTicker = '', onSave, onClose }: LogFormProps) {
-  const [ticker, setTicker] = useState(prefillTicker.toUpperCase());
-  const [direction, setDirection] = useState<'long' | 'short'>('long');
-  const [assetType, setAssetType] = useState<'stock' | 'option' | 'etf' | 'crypto'>('stock');
-  const [entryDate, setEntryDate] = useState(new Date().toISOString().slice(0, 16));
-  const [thesis, setThesis] = useState('');
-  const [setupTags, setSetupTags] = useState<SetupTag[]>([]);
+function LogForm({ prefillTicker = '', prefill, onSave, onClose }: LogFormProps) {
+  const p = prefill;
+  const [ticker, setTicker] = useState((p?.ticker ?? prefillTicker).toUpperCase());
+  const [direction, setDirection] = useState<'long' | 'short'>(p?.direction === 'short' ? 'short' : 'long');
+  const [assetType, setAssetType] = useState<'stock' | 'option' | 'etf' | 'crypto'>(p?.assetType ?? 'stock');
+  const [entryDate, setEntryDate] = useState(p?.entryDate ? new Date(p.entryDate).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16));
+  const [thesis, setThesis] = useState(p?.thesis ?? '');
+  const [setupTags, setSetupTags] = useState<SetupTag[]>((p?.setupTags ?? []) as SetupTag[]);
   const [catalystTags, setCatalystTags] = useState<CatalystTag[]>([]);
   const [emotional, setEmotional] = useState<EmotionalState>('calm');
   const [conviction, setConviction] = useState(3);
@@ -104,16 +108,17 @@ function LogForm({ prefillTicker = '', onSave, onClose }: LogFormProps) {
   const [agreedWithForecast, setAgreedWithForecast] = useState<boolean | null>(null);
 
   // Stock fields
-  const [entryPrice, setEntryPrice] = useState('');
-  const [shares, setShares] = useState('');
+  const [entryPrice, setEntryPrice] = useState(p?.stockDetails?.entryPrice != null ? String(p.stockDetails.entryPrice) : '');
+  const [shares, setShares] = useState(p?.stockDetails?.shares != null ? String(p.stockDetails.shares) : '');
 
   // Option fields
-  const [contractType, setContractType] = useState<'call' | 'put'>('call');
-  const [strike, setStrike] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [contracts, setContracts] = useState('1');
-  const [entryPremium, setEntryPremium] = useState('');
-  const [underlyingAtEntry, setUnderlyingAtEntry] = useState('');
+  const od = p?.optionDetails;
+  const [contractType, setContractType] = useState<'call' | 'put'>(od?.contractType ?? 'call');
+  const [strike, setStrike] = useState(od?.strike != null ? String(od.strike) : '');
+  const [expiry, setExpiry] = useState(od?.expiry ?? '');
+  const [contracts, setContracts] = useState(od?.contracts != null ? String(od.contracts) : '1');
+  const [entryPremium, setEntryPremium] = useState(od?.entryPremium != null ? String(od.entryPremium) : '');
+  const [underlyingAtEntry, setUnderlyingAtEntry] = useState(od?.underlyingPriceAtEntry != null ? String(od.underlyingPriceAtEntry) : '');
 
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -179,6 +184,12 @@ function LogForm({ prefillTicker = '', onSave, onClose }: LogFormProps) {
 
   return (
     <form onSubmit={submit} className="space-y-5">
+      {prefill && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-forest/10 border border-forest/30 text-xs text-forest">
+          <CheckCircle2 size={12} />
+          Pre-filled from AI — review and adjust before saving.
+        </div>
+      )}
       {/* Ticker + direction + asset */}
       <div className="grid grid-cols-3 gap-3">
         <div className="col-span-1">
@@ -990,14 +1001,24 @@ function StatsDashboard({ stats }: { stats: JournalStats }) {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-type Modal = { type: 'log' } | { type: 'close'; trade: TradeEntry } | { type: 'edit'; trade: TradeEntry } | null;
+type Modal = { type: 'quick'; prefillTicker?: string } | { type: 'log'; prefill?: ParsedTrade } | { type: 'close'; trade: TradeEntry } | { type: 'edit'; trade: TradeEntry } | null;
 
 export default function Journal() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [trades, setTrades] = useState<TradeEntry[]>([]);
   const [stats, setStats] = useState<JournalStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Modal>(null);
   const [filter, setFilter] = useState<'all' | 'open' | 'closed'>('all');
+
+  // Open quick-log modal when navigated to with ?ticker=XYZ
+  useEffect(() => {
+    const t = searchParams.get('ticker');
+    if (t) {
+      setModal({ type: 'quick', prefillTicker: t.toUpperCase() });
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1039,7 +1060,7 @@ export default function Journal() {
           <p className="text-sm text-ink-secondary mt-0.5">Decision records, not just price records.</p>
         </div>
         <button
-          onClick={() => setModal({ type: 'log' })}
+          onClick={() => setModal({ type: 'quick' })}
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-forest text-white text-sm font-medium hover:bg-forest/90 transition-all shadow-sm"
         >
           <Plus size={16} /> Log Trade
@@ -1076,7 +1097,7 @@ export default function Journal() {
           <p className="font-medium text-ink mb-1">No trades yet</p>
           <p className="text-sm text-ink-secondary mb-4">Log your first trade to start tracking your decisions.</p>
           <button
-            onClick={() => setModal({ type: 'log' })}
+            onClick={() => setModal({ type: 'quick' })}
             className="px-4 py-2 rounded-xl bg-forest text-white text-sm font-medium hover:bg-forest/90 transition-all"
           >
             Log a trade
@@ -1118,14 +1139,23 @@ export default function Journal() {
             >
               <div className="flex items-center justify-between mb-5">
                 <h2 className="font-semibold text-ink">
-                  {modal.type === 'log' ? 'Log a Trade' : modal.type === 'edit' ? `Edit ${modal.trade.ticker}` : `Close ${modal.trade.ticker}`}
+                  {modal.type === 'quick' ? (modal.prefillTicker ? `Log ${modal.prefillTicker} Trade` : 'Log a Trade')
+                    : modal.type === 'log' ? (modal.prefill ? 'Confirm & Save Trade' : 'Log a Trade')
+                    : modal.type === 'edit' ? `Edit ${modal.trade.ticker}`
+                    : `Close ${modal.trade.ticker}`}
                 </h2>
                 <button onClick={() => setModal(null)} className="p-1.5 rounded-full hover:bg-white/20 transition-all text-ink-secondary">
                   <X size={16} />
                 </button>
               </div>
-              {modal.type === 'log' ? (
-                <LogForm onSave={handleSaved} onClose={() => setModal(null)} />
+              {modal.type === 'quick' ? (
+                <QuickLogModal
+                  prefillTicker={modal.prefillTicker}
+                  onConfirm={parsed => setModal({ type: 'log', prefill: parsed })}
+                  onClose={() => setModal(null)}
+                />
+              ) : modal.type === 'log' ? (
+                <LogForm prefill={modal.prefill} onSave={handleSaved} onClose={() => setModal(null)} />
               ) : modal.type === 'edit' ? (
                 <EditForm trade={modal.trade} onSave={handleSaved} onClose={() => setModal(null)} />
               ) : (

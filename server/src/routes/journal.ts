@@ -1,8 +1,89 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import Anthropic from '@anthropic-ai/sdk';
 import { requireAuth } from '../middleware/auth';
 import { TradeJournal, ITradeJournal } from '../models/TradeJournal';
 import { IUser } from '../models/User';
+
+const SCREENSHOT_SYSTEM_PROMPT = `You are a trade data extraction engine for EquityIQ's trading journal. You will be given one or more screenshots of brokerage trade confirmations, options chain details, or portfolio holdings pages. Extract the trade information and return ONLY valid JSON matching the schema below — no preamble, no markdown fences, no explanation.
+
+RULES:
+1. Determine assetType first: "option" if strike/expiry/contract type is present, otherwise "stock".
+2. For options, entryPremium and exitPremium are the PER-CONTRACT price (e.g. "100 x $0.51" means entryPremium: 0.51, NOT the total cost). Never confuse the underlying stock price with the premium.
+3. direction is "long" if the action was "Buy to open" / "Limit buy" / "Market buy", and "short" if "Sell to open".
+4. If a screenshot shows "Sell to close" or "Buy to close", treat it as the EXIT — populate exitPremium/exitDate, not entryPremium/entryDate.
+5. If multiple screenshots are provided together, merge them into a single trade record.
+6. Pull any available Greeks (IV, delta, theta, gamma, vega) into optionDetails as *Entry fields if near entry time. Flag timestamp mismatches in "notes".
+7. Extract account type (TFSA, RRSP, margin, non-registered, etc.) if visible.
+8. Use "Filled" timestamp for entryDate/exitDate, not "Submitted".
+9. Do NOT compute P&L. Leave pnl fields null.
+10. If a field is not visible, omit it or set it to null — never fabricate.
+11. If screenshots are ambiguous or insufficient, return {"error": "description of what's missing"}.
+
+OUTPUT SCHEMA (return ONLY this JSON, nothing else):
+{
+  "ticker": string,
+  "assetType": "stock" | "option",
+  "direction": "long" | "short",
+  "account": string | null,
+  "entryDate": ISO 8601 string | null,
+  "exitDate": ISO 8601 string | null,
+  "fees": number | null,
+  "stockDetails": { "entryPrice": number, "exitPrice": number|null, "shares": number } | null,
+  "optionDetails": {
+    "contractType": "call" | "put",
+    "strike": number,
+    "expiry": ISO 8601 date string,
+    "contracts": number,
+    "entryPremium": number,
+    "exitPremium": number | null,
+    "multiplier": 100,
+    "underlyingPriceAtEntry": number | null,
+    "underlyingPriceAtExit": number | null,
+    "ivEntry": number | null,
+    "deltaEntry": number | null,
+    "thetaEntry": number | null,
+    "gammaEntry": number | null,
+    "vegaEntry": number | null
+  } | null,
+  "notes": string | null
+}`;
+
+const NL_SYSTEM_PROMPT = `You are a trade entry parser for a trading journal. The user will type a short natural-language description of a trade. Extract the fields and return ONLY valid JSON matching the schema below — no preamble, no markdown fences.
+
+Examples:
+- "SOFI 19p 7/17, bought .51 sold .65, 100 contracts, TFSA, faded overbought RSI" → option trade
+- "bought 50 AAPL at 190, sold 195, margin account" → stock trade
+- "NVDA call 130 Aug 15 expiry, 2 contracts, paid 2.40" → open option trade
+
+OUTPUT SCHEMA (return ONLY this JSON):
+{
+  "ticker": string | null,
+  "assetType": "stock" | "option" | null,
+  "direction": "long" | "short" | null,
+  "account": string | null,
+  "entryDate": ISO 8601 string | null,
+  "exitDate": ISO 8601 string | null,
+  "fees": number | null,
+  "stockDetails": { "entryPrice": number | null, "exitPrice": number | null, "shares": number | null } | null,
+  "optionDetails": {
+    "contractType": "call" | "put" | null,
+    "strike": number | null,
+    "expiry": string | null,
+    "contracts": number | null,
+    "entryPremium": number | null,
+    "exitPremium": number | null,
+    "multiplier": 100
+  } | null,
+  "thesis": string | null,
+  "setupTags": string[],
+  "confidence": "high" | "medium" | "low"
+}
+
+For setupTags, infer from context: "faded overbought RSI" → ["mean_reversion"], "earnings play" → ["earnings_play"], "breakout" → ["breakout"], etc.
+For thesis, extract any reasoning the user gave (e.g. "faded overbought RSI" → "Faded overbought RSI signal").
+If the year is missing from a date, assume the current year.
+Set confidence to "low" if critical fields (ticker, price/premium) are missing.`;
 
 const router = Router();
 router.use(requireAuth);
@@ -172,6 +253,64 @@ router.get('/stats', async (req, res, next) => {
       },
     });
   } catch (err) { next(err); }
+});
+
+// POST /api/journal/parse-screenshot — vision call to extract trade from images
+router.post('/parse-screenshot', async (req, res, next) => {
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) { res.status(503).json({ error: 'ANTHROPIC_API_KEY not set.' }); return; }
+    const { images } = req.body as { images: string[] }; // base64 data URLs
+    if (!images?.length) { res.status(400).json({ error: 'No images provided.' }); return; }
+
+    const client = new Anthropic({ apiKey });
+    const imageContent = images.map((img: string) => {
+      const [header, data] = img.split(',');
+      const mediaType = (header.match(/data:([^;]+)/) ?.[1] ?? 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+      return { type: 'image' as const, source: { type: 'base64' as const, media_type: mediaType, data } };
+    });
+
+    const response = await client.messages.create({
+      model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5',
+      max_tokens: 1024,
+      system: SCREENSHOT_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: [...imageContent, { type: 'text', text: 'Extract the trade data from these screenshots.' }] }],
+    });
+
+    const text = response.content.find(b => b.type === 'text')?.text ?? '';
+    const jsonText = text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+    const result = JSON.parse(jsonText);
+    res.json(result);
+  } catch (err: any) {
+    if (err instanceof SyntaxError) { res.status(422).json({ error: 'Could not parse AI response as JSON.' }); return; }
+    next(err);
+  }
+});
+
+// POST /api/journal/parse-text — NL quick entry
+router.post('/parse-text', async (req, res, next) => {
+  try {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) { res.status(503).json({ error: 'ANTHROPIC_API_KEY not set.' }); return; }
+    const { text } = req.body as { text: string };
+    if (!text?.trim()) { res.status(400).json({ error: 'No text provided.' }); return; }
+
+    const client = new Anthropic({ apiKey });
+    const response = await client.messages.create({
+      model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
+      max_tokens: 512,
+      system: NL_SYSTEM_PROMPT,
+      messages: [{ role: 'user', content: text }],
+    });
+
+    const raw = response.content.find(b => b.type === 'text')?.text ?? '';
+    const jsonText = raw.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
+    const result = JSON.parse(jsonText);
+    res.json(result);
+  } catch (err: any) {
+    if (err instanceof SyntaxError) { res.status(422).json({ error: 'Could not parse AI response.' }); return; }
+    next(err);
+  }
 });
 
 // POST /api/journal

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Activity, Bell, TrendingDown, TrendingUp } from '../lib/icons';
+import { Activity, Bell, NotebookPen, TrendingDown, TrendingUp } from '../lib/icons';
 import { Link } from 'react-router-dom';
 import type { ResearchReport } from '../types';
 import { fmtCompact, fmtDate, fmtPct, fmtPrice, fmtRelative } from '../lib/helpers';
@@ -138,6 +138,19 @@ export default function SnapshotCard({ data }: Props) {
             >
               <Bell size={13} />
               Alert
+            </Link>
+            <Link
+              to={`/journal?ticker=${data.ticker}`}
+              className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium text-ink-secondary transition"
+              style={{
+                background: 'var(--panel-bg)',
+                border: '1px solid var(--panel-border)',
+                boxShadow: 'var(--panel-shadow)',
+              }}
+              title="Log this trade in your journal"
+            >
+              <NotebookPen size={13} />
+              Log trade
             </Link>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">

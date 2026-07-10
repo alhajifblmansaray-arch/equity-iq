@@ -629,6 +629,38 @@ export interface TradeEntry {
   createdAt: string;
 }
 
+export interface ParsedTrade {
+  error?: string;
+  ticker?: string | null;
+  assetType?: TradeAssetType | null;
+  direction?: TradeDirection | null;
+  account?: string | null;
+  entryDate?: string | null;
+  exitDate?: string | null;
+  fees?: number | null;
+  stockDetails?: { entryPrice: number | null; exitPrice: number | null; shares: number | null } | null;
+  optionDetails?: {
+    contractType?: 'call' | 'put' | null;
+    strike?: number | null;
+    expiry?: string | null;
+    contracts?: number | null;
+    entryPremium?: number | null;
+    exitPremium?: number | null;
+    multiplier?: number;
+    underlyingPriceAtEntry?: number | null;
+    underlyingPriceAtExit?: number | null;
+    ivEntry?: number | null;
+    deltaEntry?: number | null;
+    thetaEntry?: number | null;
+    gammaEntry?: number | null;
+    vegaEntry?: number | null;
+  } | null;
+  thesis?: string | null;
+  setupTags?: string[];
+  notes?: string | null;
+  confidence?: 'high' | 'medium' | 'low';
+}
+
 export interface JournalStats {
   totalTrades: number;
   openTrades?: number;
