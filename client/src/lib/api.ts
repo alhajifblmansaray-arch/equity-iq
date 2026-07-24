@@ -224,6 +224,24 @@ export const journal = {
   remove: (id: string) => api.delete(`/journal/${id}`).then(() => undefined),
 };
 
+export const portfolio = {
+  get: (account?: string) =>
+    api.get<import('../types').PortfolioData>('/portfolio', { params: account ? { account } : {} }).then((r) => r.data),
+  addHolding: (payload: { ticker: string; quantity: number; avgCost: number; currency?: string; account?: string }) =>
+    api.post('/portfolio/holdings', payload).then((r) => r.data),
+  updateHolding: (id: string, payload: Partial<{ quantity: number; avgCost: number; currency: string; account: string }>) =>
+    api.patch(`/portfolio/holdings/${id}`, payload).then((r) => r.data),
+  removeHolding: (id: string) => api.delete(`/portfolio/holdings/${id}`).then(() => undefined),
+  addTransaction: (payload: {
+    type: string; ticker?: string; quantity?: number; price?: number; amount: number; currency?: string; note?: string; date?: string;
+  }) => api.post('/portfolio/transactions', payload).then((r) => r.data),
+  removeTransaction: (id: string) => api.delete(`/portfolio/transactions/${id}`).then(() => undefined),
+  setCash: (cash: number, cashCurrency?: string) =>
+    api.patch('/portfolio/cash', { cash, cashCurrency }).then((r) => r.data),
+  addAccount: (name: string) =>
+    api.post<{ ok: boolean; accounts: string[] }>('/portfolio/accounts', { name }).then((r) => r.data),
+};
+
 export const watchlist = {
   get: () => api.get<{ watchlist: string[] }>('/user/watchlist').then((r) => r.data.watchlist),
   add: (ticker: string) =>

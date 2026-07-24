@@ -19,6 +19,7 @@ import learnRoutes from './routes/learn';
 import challengeRoutes from './routes/challenge';
 import profileRoutes from './routes/profile';
 import journalRoutes from './routes/journal';
+import portfolioRoutes from './routes/portfolio';
 import { startAlertChecker } from './services/alertChecker';
 import { resolveDueForecasts } from './services/forecastTracker';
 import { startLimitOrderChecker } from './services/limitOrderChecker';
@@ -87,6 +88,18 @@ async function main(): Promise<void> {
   app.use('/api/challenge', challengeRoutes);
   app.use('/api/profile', profileRoutes);
   app.use('/api/journal', journalRoutes);
+  app.use('/api/portfolio', portfolioRoutes);
+
+  // In production, serve the built React client from this same service so the
+  // app and API share one origin (no CORS, and session cookies just work).
+  if (process.env.NODE_ENV === 'production') {
+    const clientDist = path.join(__dirname, '../../client/dist');
+    app.use(express.static(clientDist));
+    // SPA fallback — any non-/api route returns index.html so client routing works.
+    app.get(/^(?!\/api).*/, (_req, res) => {
+      res.sendFile(path.join(clientDist, 'index.html'));
+    });
+  }
 
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('Unhandled error:', err);

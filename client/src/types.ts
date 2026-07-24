@@ -678,3 +678,60 @@ export interface JournalStats {
     fadedTotal: number;
   };
 }
+
+/* ── Portfolio ────────────────────────────────────────────────────────────── */
+
+export type Currency = 'CAD' | 'USD';
+export type TransactionType = 'buy' | 'sell' | 'dividend' | 'deposit' | 'withdrawal';
+
+export interface PortfolioHolding {
+  id: string;
+  ticker: string;
+  quantity: number;
+  avgCost: number;
+  currency: Currency;
+  account: string;
+  color: string;
+  price: number | null;
+  change: number | null;
+  changePct: number | null;
+  marketValue: number | null;
+  costBasis: number;
+  todayReturn: number | null;
+  allTimeReturn: number | null;
+  allTimeReturnPct: number | null;
+  allocation: number;
+}
+
+export interface PortfolioTransaction {
+  id: string;
+  date: string;
+  type: TransactionType;
+  ticker: string | null;
+  quantity: number | null;
+  price: number | null;
+  amount: number;
+  currency: Currency;
+  note: string | null;
+  color: string;
+}
+
+export interface PortfolioSummary {
+  totalValue: number;
+  investedValue: number;
+  totalCost: number;
+  todayChange: number;
+  todayChangePct: number;
+  allTimeReturn: number;
+  allTimeReturnPct: number;
+}
+
+export interface PortfolioData {
+  accounts: string[];
+  cash: number;
+  cashCurrency: Currency;
+  holdings: PortfolioHolding[];
+  transactions: PortfolioTransaction[];
+  history: number[];
+  summary: PortfolioSummary;
+}

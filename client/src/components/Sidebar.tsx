@@ -7,6 +7,7 @@ import {
   BookOpen,
   CalendarDays,
   GitCompareArrows,
+  Landmark,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -26,6 +27,7 @@ import { fmtPct, fmtPrice } from '../lib/helpers';
 
 const NAV_MAIN: Array<{ to: string; label: string; icon: React.ReactNode }> = [
   { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+  { to: '/portfolio', label: 'Portfolio', icon: <Landmark size={18} /> },
   { to: '/watchlist', label: 'Watchlist', icon: <Star size={18} /> },
   { to: '/compare', label: 'Compare', icon: <GitCompareArrows size={18} /> },
   { to: '/live', label: 'Live charts', icon: <Activity size={18} /> },
