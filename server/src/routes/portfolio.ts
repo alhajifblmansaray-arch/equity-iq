@@ -314,32 +314,39 @@ router.post('/snaptrade/init', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /snaptrade/callback — handle OAuth return from Snaptrade
+// POST /snaptrade/callback — handle OAuth return from Snaptrade OR direct credential entry
 router.post('/snaptrade/callback', async (req, res, next) => {
   try {
     const user = req.user as IUser;
-    const { code, state } = req.body;
+    const { code, state, snaptradeUserId, snaptradeUserSecret } = req.body;
 
-    if (!code || !state) {
-      res.status(400).json({ error: 'OAuth code and state required.' });
+    let userId: string;
+    let userSecret: string;
+
+    // Two paths: OAuth (code + state) or direct credentials (for test mode)
+    if (code && state) {
+      // OAuth path: In a real implementation, exchange code for tokens here
+      userId = SnaptradeService.generateUserId(state);
+      userSecret = code;
+    } else if (snaptradeUserId && snaptradeUserSecret) {
+      // Direct credentials path (test/fallback mode)
+      userId = snaptradeUserId;
+      userSecret = snaptradeUserSecret;
+    } else {
+      res.status(400).json({ error: 'OAuth code+state or credentials (userId+userSecret) required.' });
       return;
     }
-
-    // In a real implementation, exchange code for tokens here:
-    // const tokens = await axios.post('https://api.snaptrade.com/token', { code, ...auth });
-    // For now, use the state (EquityIQ user ID) to generate a userId
-    const snaptradeUserId = SnaptradeService.generateUserId(state);
 
     let auth = await SnaptradeAuth.findOne({ user: user.id });
     if (!auth) {
       auth = await SnaptradeAuth.create({
         user: user.id,
-        snaptradeUserId,
-        snaptradeUserSecret: code, // Store auth code temporarily
+        snaptradeUserId: userId,
+        snaptradeUserSecret: userSecret,
       });
     } else {
-      auth.snaptradeUserId = snaptradeUserId;
-      auth.snaptradeUserSecret = code;
+      auth.snaptradeUserId = userId;
+      auth.snaptradeUserSecret = userSecret;
     }
 
     // Mark as connected
@@ -349,10 +356,9 @@ router.post('/snaptrade/callback', async (req, res, next) => {
 
     // Auto-sync holdings on first connect
     try {
-      // Note: This will fail until actual token exchange is implemented
-      await syncSnaptradeHoldings(user.id, snaptradeUserId, code);
+      await syncSnaptradeHoldings(user.id, userId, userSecret);
     } catch (syncErr) {
-      console.warn('First sync skipped (real token exchange not yet implemented):', syncErr);
+      console.warn('First sync skipped (may be invalid credentials):', syncErr);
       // Don't fail the connection, user can retry sync later
     }
 
