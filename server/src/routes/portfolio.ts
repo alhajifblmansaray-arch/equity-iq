@@ -2,10 +2,12 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/auth';
 import Portfolio from '../models/Portfolio';
+import SnaptradeAuth from '../models/SnaptradeAuth';
 import { IUser } from '../models/User';
 import { twelveDataQuote, twelveDataHistory } from '../services/twelveData';
 import { finnhubQuote } from '../services/finnhub';
 import { yahooQuote, yahooHistory } from '../services/yahoo';
+import { SnaptradeService } from '../services/snaptrade';
 
 const router = Router();
 router.use(requireAuth);
@@ -275,5 +277,158 @@ router.post('/accounts', async (req, res, next) => {
     res.status(201).json({ ok: true, accounts: p.accounts });
   } catch (err) { next(err); }
 });
+
+// ── Snaptrade broker integration ────────────────────────────────────────────────
+
+// GET /snaptrade/status — check if connected
+router.get('/snaptrade/status', async (req, res, next) => {
+  try {
+    const user = req.user as IUser;
+    const auth = await SnaptradeAuth.findOne({ user: user.id });
+    res.json({
+      isConnected: auth?.isConnected ?? false,
+      connectedAt: auth?.connectedAt,
+      lastSyncAt: auth?.lastSyncAt,
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /snaptrade/init — start OAuth flow
+router.post('/snaptrade/init', async (req, res, next) => {
+  try {
+    const user = req.user as IUser;
+    let auth = await SnaptradeAuth.findOne({ user: user.id });
+
+    if (!auth) {
+      // Create new Snaptrade user
+      const snaptrade = await SnaptradeService.createUser(user.id);
+      auth = await SnaptradeAuth.create({
+        user: user.id,
+        snaptradeUserId: snaptrade.userId,
+        snaptradeUserSecret: snaptrade.userSecret,
+      });
+    }
+
+    const redirectUri = `${process.env.CLIENT_ORIGIN}/portfolio?snaptrade=callback`;
+    const authUrl = SnaptradeService.getAuthURL(auth.snaptradeUserId, auth.snaptradeUserSecret, redirectUri);
+    res.json({ authUrl });
+  } catch (err) { next(err); }
+});
+
+// POST /snaptrade/callback — handle OAuth return (called by frontend after redirect)
+router.post('/snaptrade/callback', async (req, res, next) => {
+  try {
+    const user = req.user as IUser;
+    const auth = await SnaptradeAuth.findOne({ user: user.id });
+    if (!auth) { res.status(400).json({ error: 'Snaptrade not initialized.' }); return; }
+
+    // Mark as connected
+    auth.isConnected = true;
+    auth.connectedAt = new Date();
+    await auth.save();
+
+    // Auto-sync holdings on first connect
+    await syncSnaptradeHoldings(user.id, auth.snaptradeUserId, auth.snaptradeUserSecret);
+    res.json({ ok: true, message: 'Snaptrade connected and synced.' });
+  } catch (err) { next(err); }
+});
+
+// POST /snaptrade/sync — manual sync
+router.post('/snaptrade/sync', async (req, res, next) => {
+  try {
+    const user = req.user as IUser;
+    const auth = await SnaptradeAuth.findOne({ user: user.id });
+    if (!auth || !auth.isConnected) { res.status(400).json({ error: 'Snaptrade not connected.' }); return; }
+
+    await syncSnaptradeHoldings(user.id, auth.snaptradeUserId, auth.snaptradeUserSecret);
+    auth.lastSyncAt = new Date();
+    await auth.save();
+
+    res.json({ ok: true, lastSyncAt: auth.lastSyncAt });
+  } catch (err) { next(err); }
+});
+
+// POST /snaptrade/disconnect
+router.post('/snaptrade/disconnect', async (req, res, next) => {
+  try {
+    const user = req.user as IUser;
+    await SnaptradeAuth.findOneAndDelete({ user: user.id });
+    res.json({ ok: true, message: 'Snaptrade disconnected.' });
+  } catch (err) { next(err); }
+});
+
+// Helper: sync holdings from Snaptrade into Portfolio
+async function syncSnaptradeHoldings(userId: string, snaptradeUserId: string, snaptradeUserSecret: string) {
+  try {
+    const holdings = await SnaptradeService.getHoldings(snaptradeUserId, snaptradeUserSecret);
+    const transactions = await SnaptradeService.getTransactions(snaptradeUserId, snaptradeUserSecret);
+    const accounts = await SnaptradeService.getAccounts(snaptradeUserId, snaptradeUserSecret);
+
+    const p = await getOrCreate(userId);
+
+    // Add/merge holdings
+    for (const h of holdings) {
+      const ticker = h.symbol?.symbol?.toUpperCase() || 'UNKNOWN';
+      const currency = (h.currency?.code || h.symbol?.currency?.code || 'USD') as 'CAD' | 'USD';
+      const account = 'Snaptrade Import';
+
+      if (!p.accounts.includes(account)) p.accounts.push(account);
+
+      const existing = p.holdings.find((x) => x.ticker === ticker && x.account === account);
+      if (existing) {
+        existing.quantity = h.quantity;
+        existing.avgCost = h.price || existing.avgCost;
+      } else {
+        p.holdings.push({ ticker, quantity: h.quantity, avgCost: h.price || 0, currency, account } as any);
+      }
+    }
+
+    // Add transactions (avoid duplicates by checking date + action + ticker + quantity)
+    for (const tx of transactions) {
+      const type = tx.action === 'BUY' ? 'buy'
+        : tx.action === 'SELL' ? 'sell'
+        : tx.action === 'DIVIDEND' ? 'dividend'
+        : tx.action === 'DEPOSIT' ? 'deposit'
+        : tx.action === 'WITHDRAWAL' ? 'withdrawal'
+        : null;
+
+      if (!type) continue;
+
+      const exists = p.transactions.some(
+        (t) =>
+          new Date(t.date).getTime() === new Date(tx.trade_date).getTime() &&
+          t.type === type &&
+          t.ticker === tx.symbol &&
+          t.quantity === tx.units
+      );
+
+      if (!exists) {
+        p.transactions.push({
+          date: new Date(tx.trade_date),
+          type,
+          ticker: tx.symbol,
+          quantity: type !== 'dividend' ? tx.units : undefined,
+          price: type !== 'dividend' ? tx.price : undefined,
+          amount: Math.abs(tx.net_proceeds),
+          currency: (tx.currency || 'USD') as 'CAD' | 'USD',
+          note: `Imported from Snaptrade (${tx.id})`,
+        } as any);
+      }
+    }
+
+    // Update cash (sum of deposits/withdrawals from Snaptrade)
+    let snapCash = 0;
+    for (const tx of transactions) {
+      if (tx.action === 'DEPOSIT') snapCash += tx.net_proceeds;
+      else if (tx.action === 'WITHDRAWAL') snapCash -= tx.net_proceeds;
+    }
+    if (snapCash !== 0) p.cash = snapCash;
+
+    await p.save();
+  } catch (error) {
+    console.error('Snaptrade sync failed:', error);
+    throw error;
+  }
+}
 
 export default router;

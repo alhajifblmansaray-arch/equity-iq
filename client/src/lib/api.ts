@@ -240,6 +240,18 @@ export const portfolio = {
     api.patch('/portfolio/cash', { cash, cashCurrency }).then((r) => r.data),
   addAccount: (name: string) =>
     api.post<{ ok: boolean; accounts: string[] }>('/portfolio/accounts', { name }).then((r) => r.data),
+  snaptrade: {
+    status: () =>
+      api.get<import('../types').SnaptradeStatus>('/portfolio/snaptrade/status').then((r) => r.data),
+    initConnect: () =>
+      api.post<{ authUrl: string }>('/portfolio/snaptrade/init').then((r) => r.data),
+    handleCallback: () =>
+      api.post('/portfolio/snaptrade/callback').then(() => undefined),
+    sync: () =>
+      api.post<{ ok: boolean; lastSyncAt: string }>('/portfolio/snaptrade/sync').then((r) => r.data),
+    disconnect: () =>
+      api.post('/portfolio/snaptrade/disconnect').then(() => undefined),
+  },
 };
 
 export const watchlist = {

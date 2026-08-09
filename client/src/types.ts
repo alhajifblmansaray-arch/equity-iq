@@ -726,6 +726,12 @@ export interface PortfolioSummary {
   allTimeReturnPct: number;
 }
 
+export interface SnaptradeStatus {
+  isConnected: boolean;
+  connectedAt?: string;
+  lastSyncAt?: string;
+}
+
 export interface PortfolioData {
   accounts: string[];
   cash: number;
@@ -734,4 +740,5 @@ export interface PortfolioData {
   transactions: PortfolioTransaction[];
   history: number[];
   summary: PortfolioSummary;
+  snaptrade?: SnaptradeStatus;
 }

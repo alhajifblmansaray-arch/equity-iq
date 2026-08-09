@@ -8,6 +8,7 @@ import {
 import { portfolio as portfolioApi, research } from '../lib/api';
 import { useWatchlist } from '../contexts/WatchlistContext';
 import Sparkline from '../components/Sparkline';
+import SnaptradeConnect from '../components/SnaptradeConnect';
 import type { PortfolioData, PortfolioHolding, PortfolioTransaction, Currency } from '../types';
 
 const EASE = [0.16, 1, 0.3, 1] as [number, number, number, number];
@@ -650,6 +651,9 @@ export default function Portfolio() {
               </div>
             </div>
           ) : null}
+
+          {/* Snaptrade broker connection */}
+          <SnaptradeConnect onConnected={load} />
 
           <WatchlistRail />
         </div>
