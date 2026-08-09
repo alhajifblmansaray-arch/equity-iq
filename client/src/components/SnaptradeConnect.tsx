@@ -1,16 +1,24 @@
 import { useState, useEffect } from 'react';
 import { Plus, RefreshCw, LogOut } from '../lib/icons';
 import { portfolio } from '../lib/api';
+import type { SnaptradeStatus } from '../types';
 
 interface SnaptradeConnectProps {
   onConnected?: () => void;
   compact?: boolean;
 }
 
+/** Pull the server's message out of an axios error so failures are visible, not just logged. */
+function messageOf(err: unknown): string {
+  const e = err as { response?: { data?: { error?: string } }; message?: string };
+  return e?.response?.data?.error || e?.message || 'Something went wrong.';
+}
+
 export default function SnaptradeConnect({ onConnected, compact }: SnaptradeConnectProps) {
-  const [status, setStatus] = useState<{ isConnected: boolean; lastSyncAt?: string } | null>(null);
+  const [status, setStatus] = useState<SnaptradeStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadStatus();
@@ -18,38 +26,34 @@ export default function SnaptradeConnect({ onConnected, compact }: SnaptradeConn
 
   async function loadStatus() {
     try {
-      const s = await portfolio.snaptrade.status();
-      setStatus(s);
+      setStatus(await portfolio.snaptrade.status());
     } catch (err) {
-      console.error('Failed to load Snaptrade status:', err);
+      setError(messageOf(err));
     }
   }
 
   async function handleConnect() {
     setLoading(true);
+    setError(null);
     try {
-      // Step 1: Register (creates Snaptrade user account)
-      await portfolio.snaptrade.register();
-
-      // Step 2: Get portal URL
+      // Registers on first use, then hands back a one-time portal URL.
       const { portalUrl } = await portfolio.snaptrade.connect();
-
-      // Step 3: Redirect to Snaptrade portal
       window.location.href = portalUrl;
     } catch (err) {
-      console.error('Failed to connect Snaptrade:', err);
+      setError(messageOf(err));
       setLoading(false);
     }
   }
 
   async function handleSync() {
     setSyncing(true);
+    setError(null);
     try {
       await portfolio.snaptrade.sync();
       await loadStatus();
       onConnected?.();
     } catch (err) {
-      console.error('Failed to sync Snaptrade:', err);
+      setError(messageOf(err));
     } finally {
       setSyncing(false);
     }
@@ -57,11 +61,12 @@ export default function SnaptradeConnect({ onConnected, compact }: SnaptradeConn
 
   async function handleDisconnect() {
     if (!confirm('Disconnect Snaptrade? Your existing holdings will remain.')) return;
+    setError(null);
     try {
       await portfolio.snaptrade.disconnect();
-      setStatus({ isConnected: false });
+      await loadStatus();
     } catch (err) {
-      console.error('Failed to disconnect Snaptrade:', err);
+      setError(messageOf(err));
     }
   }
 
@@ -169,8 +174,21 @@ export default function SnaptradeConnect({ onConnected, compact }: SnaptradeConn
         )}
       </div>
 
+      {error && (
+        <div
+          className="text-xs mt-3 p-2 rounded-lg leading-relaxed"
+          style={{
+            background: 'color-mix(in srgb, var(--brick) 12%, transparent)',
+            color: 'var(--brick)',
+          }}
+        >
+          {error}
+        </div>
+      )}
+
       <div className="text-xs text-ink-tertiary mt-3 leading-relaxed">
-        Securely import your holdings, transactions, and balances. You'll be redirected to Snaptrade to authorize.
+        Securely import your holdings, transactions, and balances. You'll be redirected to Snaptrade to authorize —
+        read-only, and your broker password never reaches EquityIQ.
       </div>
     </div>
   );

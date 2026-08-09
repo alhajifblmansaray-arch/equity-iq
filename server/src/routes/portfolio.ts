@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/auth';
-import Portfolio from '../models/Portfolio';
+import Portfolio, { ITransaction } from '../models/Portfolio';
 import SnaptradeAuth from '../models/SnaptradeAuth';
 import { IUser } from '../models/User';
 import { twelveDataQuote, twelveDataHistory } from '../services/twelveData';
@@ -280,12 +280,34 @@ router.post('/accounts', async (req, res, next) => {
 
 // ── Snaptrade SDK Integration ─────────────────────────────────────────────────
 
+// Snaptrade errors carry the useful detail in responseBody — surface it instead of a bare 500.
+function snapError(err: unknown): { status: number; error: string } {
+  const e = err as { status?: number; responseBody?: { detail?: string; code?: string }; message?: string };
+  const detail = e?.responseBody?.detail;
+  if (detail) return { status: e.status && e.status >= 400 && e.status < 500 ? e.status : 502, error: detail };
+  return { status: 502, error: e?.message || 'Snaptrade request failed.' };
+}
+
+/** Registers the user with Snaptrade if we haven't already, and returns the stored auth row. */
+async function ensureSnaptradeUser(equityIQUserId: string) {
+  const existing = await SnaptradeAuth.findOne({ user: equityIQUserId });
+  if (existing) return existing;
+  const { userId, userSecret } = await SnaptradeSDK.registerUser(equityIQUserId);
+  return SnaptradeAuth.create({
+    user: equityIQUserId,
+    snaptradeUserId: userId,
+    snaptradeUserSecret: userSecret,
+    isConnected: false,
+  });
+}
+
 // GET /snaptrade/status
 router.get('/snaptrade/status', async (req, res, next) => {
   try {
     const user = req.user as IUser;
     const auth = await SnaptradeAuth.findOne({ user: user.id });
     res.json({
+      configured: SnaptradeSDK.snaptradeConfigured,
       isConnected: auth?.isConnected ?? false,
       connectedAt: auth?.connectedAt,
       lastSyncAt: auth?.lastSyncAt,
@@ -293,157 +315,171 @@ router.get('/snaptrade/status', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /snaptrade/register — create Snaptrade user account
-router.post('/snaptrade/register', async (req, res, next) => {
+// POST /snaptrade/register — create the Snaptrade-side user account
+router.post('/snaptrade/register', async (req, res) => {
   try {
     const user = req.user as IUser;
-    let auth = await SnaptradeAuth.findOne({ user: user.id });
-
-    if (!auth) {
-      // Register new Snaptrade user
-      const { userId, userSecret } = await SnaptradeSDK.registerSnaptradeUser(user.id);
-      auth = await SnaptradeAuth.create({
-        user: user.id,
-        snaptradeUserId: userId,
-        snaptradeUserSecret: userSecret,
-      });
-    }
-
+    const auth = await ensureSnaptradeUser(user.id);
     res.json({ userId: auth.snaptradeUserId });
-  } catch (err) { next(err); }
+  } catch (err) {
+    const { status, error } = snapError(err);
+    console.error('Snaptrade register failed:', error);
+    res.status(status).json({ error });
+  }
 });
 
-// POST /snaptrade/connect — get portal URL
-router.post('/snaptrade/connect', async (req, res, next) => {
+// POST /snaptrade/connect — one-time portal URL (registers first if needed)
+router.post('/snaptrade/connect', async (req, res) => {
   try {
     const user = req.user as IUser;
-    const { broker } = req.body;
-
-    const auth = await SnaptradeAuth.findOne({ user: user.id });
-    if (!auth) { res.status(400).json({ error: 'Not registered. Call /register first.' }); return; }
+    const broker = typeof req.body?.broker === 'string' ? req.body.broker : undefined;
+    const auth = await ensureSnaptradeUser(user.id);
 
     const redirectUri = `${process.env.CLIENT_ORIGIN}/portfolio?connected=1`;
-    const portalUrl = await SnaptradeSDK.getPortalUrl(auth.snaptradeUserId, auth.snaptradeUserSecret, redirectUri, broker);
-
+    const portalUrl = await SnaptradeSDK.getPortalUrl(
+      auth.snaptradeUserId,
+      auth.snaptradeUserSecret,
+      redirectUri,
+      broker
+    );
     res.json({ portalUrl });
-  } catch (err) { next(err); }
+  } catch (err) {
+    const { status, error } = snapError(err);
+    console.error('Snaptrade connect failed:', error);
+    res.status(status).json({ error });
+  }
 });
 
-// POST /snaptrade/sync — pull all holdings, accounts, transactions
-router.post('/snaptrade/sync', async (req, res, next) => {
+// POST /snaptrade/sync — pull accounts, holdings and activity
+router.post('/snaptrade/sync', async (req, res) => {
   try {
     const user = req.user as IUser;
     const auth = await SnaptradeAuth.findOne({ user: user.id });
-    if (!auth) { res.status(400).json({ error: 'Not connected.' }); return; }
+    if (!auth) { res.status(400).json({ error: 'Snaptrade is not connected.' }); return; }
 
-    await syncSnaptradeData(user.id, auth.snaptradeUserId, auth.snaptradeUserSecret);
+    const summary = await syncSnaptradeData(user.id, auth.snaptradeUserId, auth.snaptradeUserSecret);
+    auth.isConnected = true;
     auth.lastSyncAt = new Date();
     await auth.save();
 
-    res.json({ ok: true, lastSyncAt: auth.lastSyncAt });
-  } catch (err) { next(err); }
+    res.json({ ok: true, lastSyncAt: auth.lastSyncAt, ...summary });
+  } catch (err) {
+    const { status, error } = snapError(err);
+    console.error('Snaptrade sync failed:', error);
+    res.status(status).json({ error });
+  }
 });
 
-// POST /snaptrade/disconnect
+// POST /snaptrade/disconnect — drop our record and the Snaptrade-side user
 router.post('/snaptrade/disconnect', async (req, res, next) => {
   try {
     const user = req.user as IUser;
-    await SnaptradeAuth.findOneAndDelete({ user: user.id });
+    const auth = await SnaptradeAuth.findOneAndDelete({ user: user.id });
+    if (auth) {
+      // Best effort — the local record is already gone either way.
+      try { await SnaptradeSDK.deleteUser(auth.snaptradeUserId); }
+      catch (err) { console.warn('Snaptrade user delete failed:', snapError(err).error); }
+    }
     res.json({ ok: true });
   } catch (err) { next(err); }
 });
 
-// Helper: sync all data from Snaptrade using SDK
+// ── Snaptrade response readers ──────────────────────────────────────────────────
+// Snaptrade returns snake_case, and a position's ticker sits behind a
+// brokerage-specific wrapper: position.symbol.symbol.symbol. Some brokerages
+// flatten a level, so walk down until we hit the string.
+function readTicker(node: any): string | null {
+  for (let i = 0, cur = node; i < 4 && cur; i++, cur = cur.symbol) {
+    if (typeof cur.symbol === 'string') return cur.symbol.toUpperCase();
+    if (typeof cur.raw_symbol === 'string') return cur.raw_symbol.toUpperCase();
+  }
+  return null;
+}
+
+function readCurrency(node: any): ITransaction['currency'] {
+  const code = node?.currency?.code ?? node?.symbol?.currency?.code ?? node?.symbol?.symbol?.currency?.code;
+  return code === 'CAD' ? 'CAD' : 'USD';
+}
+
+const ACTIVITY_TYPES: Record<string, ITransaction['type']> = {
+  BUY: 'buy',
+  SELL: 'sell',
+  DIVIDEND: 'dividend',
+  CONTRIBUTION: 'deposit',
+  DEPOSIT: 'deposit',
+  WITHDRAWAL: 'withdrawal',
+};
+
+// Pulls accounts → positions → activity and folds them into the Portfolio doc.
 async function syncSnaptradeData(userId: string, snaptradeUserId: string, snaptradeUserSecret: string) {
-  try {
-    const p = await getOrCreate(userId);
+  const p = await getOrCreate(userId);
+  const accounts = (await SnaptradeSDK.listAccounts(snaptradeUserId, snaptradeUserSecret)) as any[];
 
-    // List all accounts
-    const accountsResponse = await SnaptradeSDK.listAccounts(snaptradeUserId, snaptradeUserSecret);
-    const accounts = Array.isArray(accountsResponse) ? accountsResponse : [];
+  if (!accounts.length) {
+    throw new Error('No brokerage accounts are linked yet — finish connecting a broker in the Snaptrade portal first.');
+  }
 
-    // For each account, pull holdings and transactions
-    for (const account of accounts) {
-      const accountId = (account as any).id;
-      const accountName = (account as any).name || `Account ${accountId}`;
-      if (!p.accounts.includes(accountName)) p.accounts.push(accountName);
+  const endDate = new Date();
+  const startDate = new Date(endDate);
+  startDate.setFullYear(startDate.getFullYear() - 1);
 
-      // Get positions (holdings)
-      try {
-        const positionsResponse = await SnaptradeSDK.getAccountPositions(snaptradeUserId, snaptradeUserSecret, accountId);
-        const positions = Array.isArray(positionsResponse) ? positionsResponse : [];
+  let holdingCount = 0;
+  let importedTx = 0;
 
-        for (const pos of positions) {
-          const ticker = (pos as any).symbol?.symbol?.toUpperCase() || 'UNKNOWN';
-          const currency = ((pos as any).currency?.code || 'USD') as 'CAD' | 'USD';
+  for (const account of accounts) {
+    const accountId: string = account.id;
+    const accountName: string =
+      account.name || [account.institution_name, account.number].filter(Boolean).join(' ') || `Account ${accountId}`;
+    if (!p.accounts.includes(accountName)) p.accounts.push(accountName);
 
-          const existing = p.holdings.find((h) => h.ticker === ticker && h.account === accountName);
-          if (existing) {
-            existing.quantity = (pos as any).quantity || 0;
-            existing.avgCost = (pos as any).averagePurchasePrice || 0;
-          } else {
-            p.holdings.push({
-              ticker,
-              quantity: (pos as any).quantity || 0,
-              avgCost: (pos as any).averagePurchasePrice || 0,
-              currency,
-              account: accountName,
-            } as any);
-          }
-        }
-      } catch (err) {
-        console.warn(`Failed to get positions for account ${accountId}:`, err);
+    // Positions → holdings (Snaptrade is the source of truth, so overwrite quantity/cost)
+    const positions = (await SnaptradeSDK.getAccountPositions(snaptradeUserId, snaptradeUserSecret, accountId)) as any[];
+    for (const pos of positions) {
+      const ticker = readTicker(pos.symbol ?? pos);
+      const units = Number(pos.units ?? pos.fractional_units);
+      if (!ticker || !Number.isFinite(units) || units === 0) continue;
+
+      const avgCost = Number(pos.average_purchase_price ?? pos.price ?? 0) || 0;
+      const existing = p.holdings.find((h) => h.ticker === ticker && h.account === accountName);
+      if (existing) {
+        existing.quantity = units;
+        existing.avgCost = avgCost;
+      } else {
+        p.holdings.push({ ticker, quantity: units, avgCost, currency: readCurrency(pos), account: accountName } as any);
       }
-
-      // Get activities (transactions) for last 365 days
-      try {
-        const endDate = new Date();
-        const startDate = new Date(endDate);
-        startDate.setFullYear(startDate.getFullYear() - 1);
-
-        const activitiesResponse = await SnaptradeSDK.getActivities(snaptradeUserId, snaptradeUserSecret, accountId, startDate, endDate);
-        const activities = Array.isArray(activitiesResponse) ? activitiesResponse : [];
-
-        for (const act of activities) {
-          const actType = (act as any).type?.toLowerCase();
-          const type = actType === 'buy' ? 'buy'
-            : actType === 'sell' ? 'sell'
-            : actType === 'dividend' ? 'dividend'
-            : null;
-
-          if (!type) continue;
-
-          // Avoid duplicates
-          const exists = p.transactions.some(
-            (t) =>
-              t.ticker === (act as any).symbol &&
-              t.type === type &&
-              new Date(t.date).toDateString() === new Date((act as any).date).toDateString()
-          );
-
-          if (!exists) {
-            p.transactions.push({
-              date: new Date((act as any).date),
-              type,
-              ticker: (act as any).symbol,
-              quantity: type !== 'dividend' ? (act as any).quantity : undefined,
-              price: type !== 'dividend' ? (act as any).price : undefined,
-              amount: Math.abs((act as any).settlementAmount || 0),
-              currency: 'USD', // Normalize to USD
-              note: `Imported from ${accountName}`,
-            } as any);
-          }
-        }
-      } catch (err) {
-        console.warn(`Failed to get activities for account ${accountId}:`, err);
-      }
+      holdingCount++;
     }
 
-    await p.save();
-  } catch (error) {
-    console.error('Snaptrade sync failed:', error);
-    throw error;
+    // Activity → transactions, deduped on Snaptrade's immutable activity id
+    const activities = (await SnaptradeSDK.getActivities(
+      snaptradeUserId, snaptradeUserSecret, accountId, startDate, endDate
+    )) as any[];
+
+    const seen = new Set(p.transactions.map((t) => t.externalId).filter(Boolean));
+    for (const act of activities) {
+      const type = ACTIVITY_TYPES[String(act.type || '').toUpperCase()];
+      const externalId: string | undefined = act.id;
+      if (!type || !externalId || seen.has(externalId)) continue;
+
+      const cash = type === 'deposit' || type === 'withdrawal' || type === 'dividend';
+      p.transactions.push({
+        externalId,
+        date: new Date(act.trade_date || act.settlement_date || Date.now()),
+        type,
+        ticker: cash ? readTicker(act.symbol) ?? undefined : readTicker(act.symbol) ?? undefined,
+        quantity: cash ? undefined : Number(act.units) || undefined,
+        price: cash ? undefined : Number(act.price) || undefined,
+        amount: Math.abs(Number(act.amount) || 0),
+        currency: readCurrency(act),
+        note: accountName,
+      } as any);
+      seen.add(externalId);
+      importedTx++;
+    }
   }
+
+  await p.save();
+  return { accounts: accounts.length, holdings: holdingCount, transactions: importedTx };
 }
 
 export default router;

@@ -727,6 +727,7 @@ export interface PortfolioSummary {
 }
 
 export interface SnaptradeStatus {
+  configured: boolean;
   isConnected: boolean;
   connectedAt?: string;
   lastSyncAt?: string;

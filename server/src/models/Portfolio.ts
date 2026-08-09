@@ -10,6 +10,8 @@ export interface ITransaction {
   amount: number; // total CAD/USD value
   currency: 'CAD' | 'USD';
   note?: string;
+  /** Immutable Snaptrade activity id — present only on imported rows, used to dedupe re-syncs. */
+  externalId?: string;
 }
 
 export interface IHolding {
@@ -41,6 +43,7 @@ const TransactionSchema = new Schema<ITransaction>(
     amount: { type: Number, required: true },
     currency: { type: String, enum: ['CAD', 'USD'], default: 'USD' },
     note: { type: String },
+    externalId: { type: String, index: true },
   },
   { _id: true }
 );
