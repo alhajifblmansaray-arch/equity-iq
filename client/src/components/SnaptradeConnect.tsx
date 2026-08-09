@@ -28,18 +28,11 @@ export default function SnaptradeConnect({ onConnected, compact }: SnaptradeConn
     }
   }
 
-  async function handleConnect() {
-    setLoading(true);
+  function handleConnect() {
+    // Show test mode directly (skip OAuth for now due to redirect URI complexity)
+    setShowTestMode(true);
     setError(null);
-    try {
-      const { authUrl } = await portfolio.snaptrade.initConnect();
-      // Redirect to Snaptrade's OAuth portal
-      window.location.href = authUrl;
-    } catch (err) {
-      console.error('Failed to initiate Snaptrade connection:', err);
-      setError(err instanceof Error ? err.message : 'Failed to start connection');
-      setLoading(false);
-    }
+    setTestCreds({ userId: '', userSecret: '' });
   }
 
   async function handleSync() {
@@ -205,7 +198,7 @@ export default function SnaptradeConnect({ onConnected, compact }: SnaptradeConn
       </div>
 
       <div className="text-xs text-ink-tertiary mt-3 leading-relaxed">
-        Securely import your holdings, transactions, and cash balance. You'll be redirected to Snaptrade to authorize.
+        Securely import your holdings, transactions, and cash balance from Snaptrade.
       </div>
 
       {error && (
@@ -217,14 +210,6 @@ export default function SnaptradeConnect({ onConnected, compact }: SnaptradeConn
           }}
         >
           {error}
-          {!status?.isConnected && (
-            <button
-              onClick={() => { setShowTestMode(true); setError(null); }}
-              className="block mt-2 underline hover:no-underline"
-            >
-              Try entering credentials manually instead
-            </button>
-          )}
         </div>
       )}
 
