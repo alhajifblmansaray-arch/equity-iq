@@ -26,6 +26,7 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-local": "^1.0.0",
+    "snaptrade-typescript-sdk": "^11.1.0",
     "ws": "^8.18.0",
     "zod": "^3.23.8"
   },

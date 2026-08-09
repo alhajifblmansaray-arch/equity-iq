@@ -442,30 +442,17 @@ export default function Portfolio() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Handle Snaptrade OAuth callback
+  // Handle return from Snaptrade portal
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    const state = params.get('state');
-
-    if (code && state) {
-      // Call backend to exchange code for tokens and store them
-      fetch('/api/portfolio/snaptrade/callback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ code, state }),
-      })
-        .then(r => {
-          if (r.ok) {
-            // Clear the URL params and reload portfolio
-            window.history.replaceState({}, '', '/portfolio');
-            load();
-          } else {
-            console.error('Snaptrade callback failed:', r.status);
-          }
+    if (params.get('connected') === '1') {
+      // Returned from Snaptrade portal, now sync the data
+      portfolioApi.snaptrade.sync()
+        .then(() => {
+          window.history.replaceState({}, '', '/portfolio');
+          load();
         })
-        .catch(err => console.error('Snaptrade callback error:', err));
+        .catch(err => console.error('Failed to sync after connection:', err));
     }
   }, [load]);
 

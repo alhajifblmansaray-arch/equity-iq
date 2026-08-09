@@ -243,10 +243,10 @@ export const portfolio = {
   snaptrade: {
     status: () =>
       api.get<import('../types').SnaptradeStatus>('/portfolio/snaptrade/status').then((r) => r.data),
-    initConnect: () =>
-      api.post<{ authUrl: string }>('/portfolio/snaptrade/init').then((r) => r.data),
-    handleCallback: () =>
-      api.post('/portfolio/snaptrade/callback').then(() => undefined),
+    register: () =>
+      api.post<{ userId: string }>('/portfolio/snaptrade/register').then((r) => r.data),
+    connect: (broker?: string) =>
+      api.post<{ portalUrl: string }>('/portfolio/snaptrade/connect', { broker }).then((r) => r.data),
     sync: () =>
       api.post<{ ok: boolean; lastSyncAt: string }>('/portfolio/snaptrade/sync').then((r) => r.data),
     disconnect: () =>
