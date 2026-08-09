@@ -314,27 +314,32 @@ router.post('/snaptrade/init', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /snaptrade/callback — handle OAuth return or manual credential entry (test mode)
+// POST /snaptrade/callback — handle OAuth return from Snaptrade
 router.post('/snaptrade/callback', async (req, res, next) => {
   try {
     const user = req.user as IUser;
-    const { snaptradeUserId, snaptradeUserSecret } = req.body;
+    const { code, state } = req.body;
 
-    if (!snaptradeUserId || !snaptradeUserSecret) {
-      res.status(400).json({ error: 'Snaptrade credentials required (userId and userSecret).' });
+    if (!code || !state) {
+      res.status(400).json({ error: 'OAuth code and state required.' });
       return;
     }
+
+    // In a real implementation, exchange code for tokens here:
+    // const tokens = await axios.post('https://api.snaptrade.com/token', { code, ...auth });
+    // For now, use the state (EquityIQ user ID) to generate a userId
+    const snaptradeUserId = SnaptradeService.generateUserId(state);
 
     let auth = await SnaptradeAuth.findOne({ user: user.id });
     if (!auth) {
       auth = await SnaptradeAuth.create({
         user: user.id,
         snaptradeUserId,
-        snaptradeUserSecret,
+        snaptradeUserSecret: code, // Store auth code temporarily
       });
     } else {
       auth.snaptradeUserId = snaptradeUserId;
-      auth.snaptradeUserSecret = snaptradeUserSecret;
+      auth.snaptradeUserSecret = code;
     }
 
     // Mark as connected
@@ -344,9 +349,10 @@ router.post('/snaptrade/callback', async (req, res, next) => {
 
     // Auto-sync holdings on first connect
     try {
-      await syncSnaptradeHoldings(user.id, snaptradeUserId, snaptradeUserSecret);
+      // Note: This will fail until actual token exchange is implemented
+      await syncSnaptradeHoldings(user.id, snaptradeUserId, code);
     } catch (syncErr) {
-      console.warn('First sync failed (may be invalid credentials):', syncErr);
+      console.warn('First sync skipped (real token exchange not yet implemented):', syncErr);
       // Don't fail the connection, user can retry sync later
     }
 

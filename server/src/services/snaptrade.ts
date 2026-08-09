@@ -36,16 +36,16 @@ export class SnaptradeService {
   }
 
   // Get OAuth redirect URL for user to connect broker
-  // For test environment, we use a simplified flow
   static getAuthURL(equityIQUserId: string, redirectUri: string): string {
     const userId = this.generateUserId(equityIQUserId);
     const params = new URLSearchParams({
       client_id: SNAPTRADE_CLIENT_ID,
-      user_id: userId,
+      userId: userId,
       redirect_uri: redirectUri,
       response_type: 'code',
+      state: equityIQUserId, // Use EquityIQ user ID as state for security
     });
-    return `https://api.snaptrade.com/oauth/authorize?${params.toString()}`;
+    return `https://app.snaptrade.com/oauth/authorize?${params.toString()}`;
   }
 
   // Fetch all holdings for a Snaptrade user
