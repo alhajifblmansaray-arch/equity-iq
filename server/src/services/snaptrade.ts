@@ -30,30 +30,22 @@ interface SnaptradeTransaction {
 }
 
 export class SnaptradeService {
-  // Create a new Snaptrade user linked to EquityIQ user
-  static async createUser(equityIQUserId: string): Promise<SnaptradeAuth> {
-    try {
-      const response = await axios.post(`${SNAPTRADE_API_BASE}/users`, {
-        userId: `eiq-${equityIQUserId}`,
-      }, {
-        auth: { username: SNAPTRADE_CLIENT_ID, password: SNAPTRADE_CONSUMER_KEY },
-      });
-      return { userId: response.data.userId, userSecret: response.data.userSecret };
-    } catch (error) {
-      console.error('Snaptrade user creation failed:', error);
-      throw error;
-    }
+  // Generate a unique Snaptrade user ID for this EquityIQ user
+  static generateUserId(equityIQUserId: string): string {
+    return `eiq-${equityIQUserId}`;
   }
 
   // Get OAuth redirect URL for user to connect broker
-  static getAuthURL(userId: string, userSecret: string, redirectUri: string): string {
+  // For test environment, we use a simplified flow
+  static getAuthURL(equityIQUserId: string, redirectUri: string): string {
+    const userId = this.generateUserId(equityIQUserId);
     const params = new URLSearchParams({
-      userId,
-      userSecret,
-      clientId: SNAPTRADE_CLIENT_ID,
-      redirectUri,
+      client_id: SNAPTRADE_CLIENT_ID,
+      user_id: userId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
     });
-    return `${SNAPTRADE_API_BASE}/oauth/authorize?${params.toString()}`;
+    return `https://api.snaptrade.com/oauth/authorize?${params.toString()}`;
   }
 
   // Fetch all holdings for a Snaptrade user

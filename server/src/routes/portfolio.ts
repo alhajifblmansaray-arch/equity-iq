@@ -297,30 +297,45 @@ router.get('/snaptrade/status', async (req, res, next) => {
 router.post('/snaptrade/init', async (req, res, next) => {
   try {
     const user = req.user as IUser;
-    let auth = await SnaptradeAuth.findOne({ user: user.id });
 
+    // Generate or retrieve Snaptrade user record
+    let auth = await SnaptradeAuth.findOne({ user: user.id });
     if (!auth) {
-      // Create new Snaptrade user
-      const snaptrade = await SnaptradeService.createUser(user.id);
       auth = await SnaptradeAuth.create({
         user: user.id,
-        snaptradeUserId: snaptrade.userId,
-        snaptradeUserSecret: snaptrade.userSecret,
+        snaptradeUserId: SnaptradeService.generateUserId(user.id),
+        snaptradeUserSecret: 'placeholder', // Not used in simplified flow
       });
     }
 
     const redirectUri = `${process.env.CLIENT_ORIGIN}/portfolio?snaptrade=callback`;
-    const authUrl = SnaptradeService.getAuthURL(auth.snaptradeUserId, auth.snaptradeUserSecret, redirectUri);
+    const authUrl = SnaptradeService.getAuthURL(user.id, redirectUri);
     res.json({ authUrl });
   } catch (err) { next(err); }
 });
 
-// POST /snaptrade/callback — handle OAuth return (called by frontend after redirect)
+// POST /snaptrade/callback — handle OAuth return or manual credential entry (test mode)
 router.post('/snaptrade/callback', async (req, res, next) => {
   try {
     const user = req.user as IUser;
-    const auth = await SnaptradeAuth.findOne({ user: user.id });
-    if (!auth) { res.status(400).json({ error: 'Snaptrade not initialized.' }); return; }
+    const { snaptradeUserId, snaptradeUserSecret } = req.body;
+
+    if (!snaptradeUserId || !snaptradeUserSecret) {
+      res.status(400).json({ error: 'Snaptrade credentials required (userId and userSecret).' });
+      return;
+    }
+
+    let auth = await SnaptradeAuth.findOne({ user: user.id });
+    if (!auth) {
+      auth = await SnaptradeAuth.create({
+        user: user.id,
+        snaptradeUserId,
+        snaptradeUserSecret,
+      });
+    } else {
+      auth.snaptradeUserId = snaptradeUserId;
+      auth.snaptradeUserSecret = snaptradeUserSecret;
+    }
 
     // Mark as connected
     auth.isConnected = true;
@@ -328,8 +343,14 @@ router.post('/snaptrade/callback', async (req, res, next) => {
     await auth.save();
 
     // Auto-sync holdings on first connect
-    await syncSnaptradeHoldings(user.id, auth.snaptradeUserId, auth.snaptradeUserSecret);
-    res.json({ ok: true, message: 'Snaptrade connected and synced.' });
+    try {
+      await syncSnaptradeHoldings(user.id, snaptradeUserId, snaptradeUserSecret);
+    } catch (syncErr) {
+      console.warn('First sync failed (may be invalid credentials):', syncErr);
+      // Don't fail the connection, user can retry sync later
+    }
+
+    res.json({ ok: true, message: 'Snaptrade connected.' });
   } catch (err) { next(err); }
 });
 
