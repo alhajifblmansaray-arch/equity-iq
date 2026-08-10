@@ -135,6 +135,10 @@ router.get('/', async (req, res, next) => {
         color: t.ticker ? tickerColor(t.ticker) : '#4b5563',
       }));
 
+    // A holding we can't price is excluded from every total above. Report those
+    // tickers so the UI can say the value is partial instead of quietly understating it.
+    const unpricedTickers = enriched.filter((h) => h.price == null).map((h) => h.ticker);
+
     res.json({
       accounts: p.accounts,
       cash,
@@ -142,6 +146,7 @@ router.get('/', async (req, res, next) => {
       holdings: enriched,
       transactions,
       history,
+      unpricedTickers,
       summary: {
         totalValue,
         investedValue,
@@ -288,10 +293,31 @@ function snapError(err: unknown): { status: number; error: string } {
   return { status: 502, error: e?.message || 'Snaptrade request failed.' };
 }
 
-/** Registers the user with Snaptrade if we haven't already, and returns the stored auth row. */
+/**
+ * Returns a Snaptrade auth row that is known-good, registering on first use.
+ *
+ * A stored row is not automatically usable: earlier builds wrote placeholder
+ * secrets, and a user deleted on Snaptrade's side leaves our row orphaned. Both
+ * cases surface as a 401 on every later call, so verify the credentials and
+ * re-register when they are rejected.
+ */
 async function ensureSnaptradeUser(equityIQUserId: string) {
   const existing = await SnaptradeAuth.findOne({ user: equityIQUserId });
-  if (existing) return existing;
+
+  if (existing) {
+    try {
+      await SnaptradeSDK.listAccounts(existing.snaptradeUserId, existing.snaptradeUserSecret);
+      return existing;
+    } catch (err) {
+      if ((err as { status?: number })?.status !== 401) throw err;
+      console.warn(`Snaptrade credentials rejected for ${existing.snaptradeUserId} — re-registering.`);
+      await existing.deleteOne();
+    }
+  }
+
+  // A previous attempt may have left a user behind under this id; clear it first.
+  try { await SnaptradeSDK.deleteUser(SnaptradeSDK.snaptradeUserIdFor(equityIQUserId)); } catch { /* nothing to remove */ }
+
   const { userId, userSecret } = await SnaptradeSDK.registerUser(equityIQUserId);
   return SnaptradeAuth.create({
     user: equityIQUserId,
@@ -401,17 +427,45 @@ function readCurrency(node: any): ITransaction['currency'] {
   return code === 'CAD' ? 'CAD' : 'USD';
 }
 
+// Snaptrade activity types we can represent. Anything else (FUNDS_CONVERSION,
+// OPTIONEXPIRATION, …) is counted and reported rather than silently dropped.
 const ACTIVITY_TYPES: Record<string, ITransaction['type']> = {
   BUY: 'buy',
   SELL: 'sell',
   DIVIDEND: 'dividend',
+  INTEREST: 'dividend',
   CONTRIBUTION: 'deposit',
   DEPOSIT: 'deposit',
   WITHDRAWAL: 'withdrawal',
 };
 
-// Pulls accounts → positions → activity and folds them into the Portfolio doc.
-async function syncSnaptradeData(userId: string, snaptradeUserId: string, snaptradeUserSecret: string) {
+/**
+ * Wealthsimple hands back several accounts sharing one name (two TFSAs, two
+ * RRSPs, …) that differ only by currency, so the raw name is not a safe key —
+ * distinct accounts would collapse into one bucket. Qualify with currency, then
+ * with a slice of the account id if that still collides.
+ */
+function buildAccountNames(accounts: any[]): Map<string, string> {
+  const names = new Map<string, string>();
+  const taken = new Map<string, string>();
+
+  for (const a of accounts) {
+    const base = a.name || [a.institution_name, a.number].filter(Boolean).join(' ') || `Account ${a.id}`;
+    const currency = a.balance?.total?.currency ?? a.currency?.code;
+    let name = currency ? `${base} · ${currency}` : base;
+
+    const owner = taken.get(name);
+    if (owner && owner !== a.id) name = `${name} (${String(a.id).slice(0, 4)})`;
+
+    taken.set(name, a.id);
+    names.set(a.id, name);
+  }
+  return names;
+}
+
+// Pulls accounts → positions → balances → activity and folds them into the Portfolio doc.
+// Exported so a scheduled job can refresh a user without going through HTTP.
+export async function syncSnaptradeData(userId: string, snaptradeUserId: string, snaptradeUserSecret: string) {
   const p = await getOrCreate(userId);
   const accounts = (await SnaptradeSDK.listAccounts(snaptradeUserId, snaptradeUserSecret)) as any[];
 
@@ -419,67 +473,91 @@ async function syncSnaptradeData(userId: string, snaptradeUserId: string, snaptr
     throw new Error('No brokerage accounts are linked yet — finish connecting a broker in the Snaptrade portal first.');
   }
 
-  const endDate = new Date();
-  const startDate = new Date(endDate);
-  startDate.setFullYear(startDate.getFullYear() - 1);
+  const accountNames = buildAccountNames(accounts);
+  const syncedAccounts = new Set(accountNames.values());
+  const seenTx = new Set(p.transactions.map((t) => t.externalId).filter(Boolean));
+  const cashByCurrency: Record<string, number> = { CAD: 0, USD: 0 };
+  const skippedTypes: Record<string, number> = {};
 
-  let holdingCount = 0;
+  const freshHoldings: Array<{ ticker: string; quantity: number; avgCost: number; currency: ITransaction['currency']; account: string }> = [];
   let importedTx = 0;
 
   for (const account of accounts) {
     const accountId: string = account.id;
-    const accountName: string =
-      account.name || [account.institution_name, account.number].filter(Boolean).join(' ') || `Account ${accountId}`;
+    const accountName = accountNames.get(accountId)!;
     if (!p.accounts.includes(accountName)) p.accounts.push(accountName);
 
-    // Positions → holdings (Snaptrade is the source of truth, so overwrite quantity/cost)
+    // Positions → holdings. Snaptrade is the source of truth, so collect the full
+    // fresh set and reconcile below rather than upserting (sold-out positions must go).
     const positions = (await SnaptradeSDK.getAccountPositions(snaptradeUserId, snaptradeUserSecret, accountId)) as any[];
     for (const pos of positions) {
       const ticker = readTicker(pos.symbol ?? pos);
       const units = Number(pos.units ?? pos.fractional_units);
       if (!ticker || !Number.isFinite(units) || units === 0) continue;
-
-      const avgCost = Number(pos.average_purchase_price ?? pos.price ?? 0) || 0;
-      const existing = p.holdings.find((h) => h.ticker === ticker && h.account === accountName);
-      if (existing) {
-        existing.quantity = units;
-        existing.avgCost = avgCost;
-      } else {
-        p.holdings.push({ ticker, quantity: units, avgCost, currency: readCurrency(pos), account: accountName } as any);
-      }
-      holdingCount++;
+      freshHoldings.push({
+        ticker,
+        quantity: units,
+        avgCost: Number(pos.average_purchase_price ?? pos.price ?? 0) || 0,
+        currency: readCurrency(pos),
+        account: accountName,
+      });
     }
 
-    // Activity → transactions, deduped on Snaptrade's immutable activity id
-    const activities = (await SnaptradeSDK.getActivities(
-      snaptradeUserId, snaptradeUserSecret, accountId, startDate, endDate
-    )) as any[];
+    // Uninvested cash sitting in the account
+    const balances = (await SnaptradeSDK.getAccountBalance(snaptradeUserId, snaptradeUserSecret, accountId)) as any[];
+    for (const b of balances ?? []) {
+      const amount = Number(b?.cash);
+      const code = b?.currency?.code === 'CAD' ? 'CAD' : 'USD';
+      if (Number.isFinite(amount) && amount !== 0) cashByCurrency[code] += amount;
+    }
 
-    const seen = new Set(p.transactions.map((t) => t.externalId).filter(Boolean));
+    // Full activity history, deduped on Snaptrade's immutable activity id
+    const activities = await SnaptradeSDK.getAccountActivities(snaptradeUserId, snaptradeUserSecret, accountId);
     for (const act of activities) {
-      const type = ACTIVITY_TYPES[String(act.type || '').toUpperCase()];
+      const rawType = String(act.type || '').toUpperCase();
+      const type = ACTIVITY_TYPES[rawType];
       const externalId: string | undefined = act.id;
-      if (!type || !externalId || seen.has(externalId)) continue;
 
-      const cash = type === 'deposit' || type === 'withdrawal' || type === 'dividend';
+      if (!type) { skippedTypes[rawType] = (skippedTypes[rawType] ?? 0) + 1; continue; }
+      if (!externalId || seenTx.has(externalId)) continue;
+
+      const isCash = type === 'deposit' || type === 'withdrawal';
       p.transactions.push({
         externalId,
         date: new Date(act.trade_date || act.settlement_date || Date.now()),
         type,
-        ticker: cash ? readTicker(act.symbol) ?? undefined : readTicker(act.symbol) ?? undefined,
-        quantity: cash ? undefined : Number(act.units) || undefined,
-        price: cash ? undefined : Number(act.price) || undefined,
+        ticker: readTicker(act.symbol) ?? undefined,
+        quantity: isCash ? undefined : Number(act.units) || undefined,
+        price: isCash ? undefined : Number(act.price) || undefined,
         amount: Math.abs(Number(act.amount) || 0),
         currency: readCurrency(act),
-        note: accountName,
+        note: act.description ? `${accountName} — ${act.description}`.slice(0, 200) : accountName,
       } as any);
-      seen.add(externalId);
+      seenTx.add(externalId);
       importedTx++;
     }
   }
 
+  // Reconcile holdings: replace everything under the accounts we just synced, and
+  // leave hand-entered holdings in other accounts untouched.
+  const manual = p.holdings.filter((h) => !syncedAccounts.has(h.account)).map((h) => h.toObject());
+  p.set('holdings', [...manual, ...freshHoldings]);
+
+  // The schema carries a single cash figure, so pick the currency holding the most
+  // and record it in that currency — no silent FX conversion.
+  const [topCurrency, topCash] = Object.entries(cashByCurrency).sort((a, b) => b[1] - a[1])[0];
+  p.cash = Number(topCash.toFixed(2));
+  p.cashCurrency = topCurrency as ITransaction['currency'];
+
   await p.save();
-  return { accounts: accounts.length, holdings: holdingCount, transactions: importedTx };
+
+  return {
+    accounts: accounts.length,
+    holdings: freshHoldings.length,
+    transactions: importedTx,
+    cash: cashByCurrency,
+    skippedActivityTypes: skippedTypes,
+  };
 }
 
 export default router;

@@ -740,6 +740,8 @@ export interface PortfolioData {
   holdings: PortfolioHolding[];
   transactions: PortfolioTransaction[];
   history: number[];
+  /** Holdings no quote provider could price — excluded from every total below. */
+  unpricedTickers?: string[];
   summary: PortfolioSummary;
   snaptrade?: SnaptradeStatus;
 }

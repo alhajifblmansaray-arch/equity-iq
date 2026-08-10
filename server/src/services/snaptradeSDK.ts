@@ -77,21 +77,36 @@ export async function getAccountPositions(userId: string, userSecret: string, ac
   return res.data ?? [];
 }
 
-export async function getActivities(
-  userId: string,
-  userSecret: string,
-  accountId: string,
-  startDate: Date,
-  endDate: Date
-) {
-  const res = await sdk().transactionsAndReporting.getActivities({
-    userId,
-    userSecret,
-    accounts: accountId,
-    startDate: startDate.toISOString().slice(0, 10),
-    endDate: endDate.toISOString().slice(0, 10),
-  });
-  return res.data ?? [];
+/**
+ * Full activity history for one account.
+ *
+ * Note: transactionsAndReporting.getActivities is 410 Gone on this account tier,
+ * as are getAllUserHoldings/getUserHoldings. The per-account endpoint below is
+ * the one that still works. It paginates, so walk until we've seen `total`.
+ */
+export async function getAccountActivities(userId: string, userSecret: string, accountId: string) {
+  const PAGE = 1000;
+  const all: any[] = [];
+
+  for (let offset = 0; ; offset += PAGE) {
+    const res = await sdk().accountInformation.getAccountActivities({
+      userId,
+      userSecret,
+      accountId,
+      offset,
+      limit: PAGE,
+    } as any);
+
+    const body = res.data as any;
+    const rows: any[] = body?.data ?? [];
+    all.push(...rows);
+
+    const total = body?.pagination?.total;
+    if (rows.length < PAGE || (typeof total === 'number' && all.length >= total)) break;
+    if (offset > 50_000) break; // hard stop; nobody has 50k activities
+  }
+
+  return all;
 }
 
 /** Removes the user (and every broker connection) on Snaptrade's side. */

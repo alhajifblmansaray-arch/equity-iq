@@ -511,6 +511,11 @@ export default function Portfolio() {
                 {dollars(s.todayChange)} <span className="text-ink-secondary font-normal">today</span>
               </div>
             )}
+            {!!data?.unpricedTickers?.length && (
+              <p className="mt-1.5 text-xs text-ink-tertiary">
+                Excludes {data.unpricedTickers.join(', ')} — no live price available, so the total is partial.
+              </p>
+            )}
           </div>
 
           {/* Chart */}
