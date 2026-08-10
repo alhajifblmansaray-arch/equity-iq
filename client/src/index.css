@@ -13,7 +13,7 @@
   --ink: #1A1A1A;
   --ink-secondary: #6B6B6B;
   --ink-tertiary: #9A9A9A;
-  --forest: #2E5D43;
+  --forest: #0E8A5F;
   --brick: #C04E40;
   --amber: #B8853A;
   --dusty: #3D6E8E;
@@ -69,9 +69,9 @@
   --btn-ink-shine: rgba(255,255,255,0.16);
   --btn-ink-press: rgba(0,0,0,0.16);
   --btn-ink-glow: rgba(0,0,0,0.16);
-  --btn-forest-top: #3C7A5A;
-  --btn-forest-bot: #2A5440;
-  --btn-forest-glow: rgba(46,93,67,0.28);
+  --btn-forest-top: #10B981;
+  --btn-forest-bot: #059669;
+  --btn-forest-glow: rgba(16,185,129,0.34);
 }
 
 :root[data-theme='dark'] {
@@ -82,7 +82,7 @@
   --ink: #F2EEE6;
   --ink-secondary: #B4AFA6;
   --ink-tertiary: #7E7870;
-  --forest: #6FB89A;
+  --forest: #34D399;
   --brick: #E88B7E;
   --amber: #DDAE63;
   --dusty: #87ADCC;
@@ -132,9 +132,9 @@
   --btn-ink-shine: rgba(255,255,255,0.18);
   --btn-ink-press: rgba(0,0,0,0.12);
   --btn-ink-glow: rgba(200,195,185,0.20);
-  --btn-forest-top: #5BA882;
-  --btn-forest-bot: #6FB89A;
-  --btn-forest-glow: rgba(111,184,154,0.28);
+  --btn-forest-top: #34D399;
+  --btn-forest-bot: #10B981;
+  --btn-forest-glow: rgba(52,211,153,0.32);
 }
 
 /* ─── Base ────────────────────────────────────────────────────────────────── */
@@ -247,7 +247,7 @@ body {
       inset 0 -1px 0 var(--btn-ink-press),
       0 1px 2px rgba(0,0,0,0.12),
       0 3px 10px var(--btn-ink-glow);
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold;
     letter-spacing: -0.014em;
     transition: box-shadow 120ms ease, transform 100ms ease, opacity 150ms ease;
   }
@@ -275,9 +275,9 @@ body {
     box-shadow:
       inset 0 1.5px 0 rgba(255,255,255,0.22),
       inset 0 -1px 0 rgba(0,0,0,0.18),
-      0 1px 2px rgba(46,93,67,0.20),
+      0 1px 2px rgba(5,150,105,0.22),
       0 4px 14px var(--btn-forest-glow);
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold;
     letter-spacing: -0.014em;
     transition: box-shadow 120ms ease, transform 100ms ease;
   }
@@ -286,7 +286,7 @@ body {
     box-shadow:
       inset 0 1.5px 0 rgba(255,255,255,0.22),
       inset 0 -1px 0 rgba(0,0,0,0.18),
-      0 2px 4px rgba(46,93,67,0.26),
+      0 2px 4px rgba(5,150,105,0.28),
       0 8px 24px var(--btn-forest-glow);
   }
   .btn-forest:active { transform: translateY(0); opacity: 0.92; }
@@ -301,7 +301,7 @@ body {
       inset 0 1px 0 rgba(255,255,255,0.24),
       0 1px 3px rgba(0,0,0,0.08);
     color: var(--ink);
-    @apply inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-medium;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium;
     letter-spacing: -0.014em;
     transition: box-shadow 120ms ease, transform 100ms ease;
   }
@@ -312,6 +312,33 @@ body {
       0 2px 8px rgba(0,0,0,0.10);
   }
   .btn-ghost:active { transform: translateY(0); }
+
+  /* Compact pill — same shapes, tighter footprint for toolbars and cards */
+  .btn-sm {
+    @apply px-3.5 py-1.5 text-[13px] gap-1.5;
+  }
+
+  /* Tab pills — segmented control that shares the button language */
+  .tab-pill {
+    @apply inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium;
+    color: var(--ink-secondary);
+    transition: background 140ms ease, color 140ms ease, transform 100ms ease;
+  }
+  .tab-pill:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); }
+  .tab-pill[aria-selected='true'] {
+    background: linear-gradient(180deg, var(--btn-ink-top) 0%, var(--btn-ink-bot) 100%);
+    color: var(--cream);
+    box-shadow: inset 0 1.5px 0 var(--btn-ink-shine), 0 2px 8px var(--btn-ink-glow);
+  }
+
+  /* Segmented container that holds tab pills */
+  .tab-rail {
+    @apply inline-flex items-center gap-1 rounded-full p-1;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+  }
 
   /* ── Dividers ────────────────────────────────────────── */
   .hairline-divider {

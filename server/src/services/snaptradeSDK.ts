@@ -109,6 +109,11 @@ export async function getAccountActivities(userId: string, userSecret: string, a
   return all;
 }
 
+/** Unlinks a single brokerage, leaving the user's other connections intact. */
+export async function removeConnection(userId: string, userSecret: string, authorizationId: string): Promise<void> {
+  await sdk().connections.removeBrokerageAuthorization({ userId, userSecret, authorizationId });
+}
+
 /** Removes the user (and every broker connection) on Snaptrade's side. */
 export async function deleteUser(userId: string): Promise<void> {
   await sdk().authentication.deleteSnapTradeUser({ userId });

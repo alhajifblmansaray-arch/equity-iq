@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  Activity,
   Award,
   Bell,
   BookOpen,
@@ -12,6 +11,7 @@ import {
   LogOut,
   Menu,
   Newspaper,
+  Search,
   NotebookPen,
   Star,
   Trophy,
@@ -19,6 +19,8 @@ import {
   X,
 } from '../lib/icons';
 import Logo from './Logo';
+import SearchModal from './SearchModal';
+import CurrencyToggle from './CurrencyToggle';
 import Sparkline from './Sparkline';
 import ThemeToggle from './ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,11 +28,10 @@ import { useWatchlist } from '../contexts/WatchlistContext';
 import { fmtPct, fmtPrice } from '../lib/helpers';
 
 const NAV_MAIN: Array<{ to: string; label: string; icon: React.ReactNode }> = [
-  { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
   { to: '/portfolio', label: 'Portfolio', icon: <Landmark size={18} /> },
+  { to: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
   { to: '/watchlist', label: 'Watchlist', icon: <Star size={18} /> },
   { to: '/compare', label: 'Compare', icon: <GitCompareArrows size={18} /> },
-  { to: '/live', label: 'Live charts', icon: <Activity size={18} /> },
   { to: '/news', label: 'News', icon: <Newspaper size={18} /> },
   { to: '/calendar', label: 'Earnings', icon: <CalendarDays size={18} /> },
   { to: '/alerts', label: 'Alerts', icon: <Bell size={18} /> },
@@ -121,15 +122,46 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
   const { user, logout } = useAuth();
   const { tickers, snaps } = useWatchlist();
   const navigate = useNavigate();
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // ⌘K / Ctrl+K opens search from anywhere
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const avatarSrc = user?.avatarUrl;
   const initials = (user?.name || 'U').split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase();
 
   return (
     <div className="flex flex-col h-full overflow-y-auto px-5 pt-6 pb-5">
-      <div className="px-1 mb-7 flex items-center justify-between">
+      <div className="px-1 mb-5 flex items-center justify-between">
         <Logo size="md" />
         <ThemeToggle />
+      </div>
+
+      {/* Search — opens the symbol lookup dialog */}
+      <button
+        onClick={() => setSearchOpen(true)}
+        className="flex items-center gap-2.5 px-3 py-2.5 mb-4 rounded-full text-[13px] transition-all glass-chip-hover text-ink-secondary hover:text-ink"
+        style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}
+      >
+        <Search size={16} className="text-ink-tertiary" />
+        <span className="flex-1 text-left">Search symbol</span>
+        <kbd className="text-[10px] font-medium px-1.5 py-0.5 rounded-md text-ink-tertiary" style={{ background: 'color-mix(in srgb, var(--ink) 8%, transparent)' }}>⌘K</kbd>
+      </button>
+      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+
+      {/* Display currency */}
+      <div className="flex items-center justify-between px-1 mb-4">
+        <span className="eyebrow">Currency</span>
+        <CurrencyToggle compact />
       </div>
 
       {/* Main navigation */}

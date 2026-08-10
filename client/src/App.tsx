@@ -1,6 +1,7 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { WatchlistProvider } from './contexts/WatchlistContext';
+import { CurrencyProvider } from './contexts/CurrencyContext';
 import { AiJobsProvider } from './contexts/AiJobsContext';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
@@ -8,7 +9,6 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Watchlist from './pages/Watchlist';
-import Live from './pages/Live';
 import News from './pages/News';
 import Compare from './pages/Compare';
 import Calendar from './pages/Calendar';
@@ -19,6 +19,7 @@ import Challenge from './pages/Challenge';
 import Profile from './pages/Profile';
 import Journal from './pages/Journal';
 import Portfolio from './pages/Portfolio';
+import PortfolioAccount from './pages/PortfolioAccount';
 
 function FullScreenLoader() {
   return (
@@ -37,11 +38,13 @@ function AuthenticatedShell() {
   if (!user) return <Navigate to="/login" replace />;
   return (
     <AiJobsProvider>
-      <WatchlistProvider>
-        <Layout>
-          <Outlet />
-        </Layout>
-      </WatchlistProvider>
+      <CurrencyProvider>
+        <WatchlistProvider>
+          <Layout>
+            <Outlet />
+          </Layout>
+        </WatchlistProvider>
+      </CurrencyProvider>
     </AiJobsProvider>
   );
 }
@@ -49,21 +52,20 @@ function AuthenticatedShell() {
 function PublicOnly({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
   if (loading) return <FullScreenLoader />;
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) return <Navigate to="/portfolio" replace />;
   return children;
 }
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
+      <Route path="/" element={<PublicOnly><Landing /></PublicOnly>} />
       <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
       <Route path="/signup" element={<PublicOnly><Signup /></PublicOnly>} />
       <Route element={<AuthenticatedShell />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/watchlist" element={<Watchlist />} />
         <Route path="/compare" element={<Compare />} />
-        <Route path="/live" element={<Live />} />
         <Route path="/news" element={<News />} />
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/alerts" element={<Alerts />} />
@@ -73,8 +75,9 @@ export default function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/journal" element={<Journal />} />
         <Route path="/portfolio" element={<Portfolio />} />
+        <Route path="/portfolio/account/:name" element={<PortfolioAccount />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/portfolio" replace />} />
     </Routes>
   );
 }

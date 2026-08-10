@@ -8,6 +8,7 @@ import { twelveDataQuote, twelveDataHistory } from '../services/twelveData';
 import { finnhubQuote } from '../services/finnhub';
 import { yahooQuote, yahooHistory } from '../services/yahoo';
 import * as SnaptradeSDK from '../services/snaptradeSDK';
+import { usdToCad, convert, type Currency as FxCurrency } from '../services/fx';
 
 const router = Router();
 router.use(requireAuth);
@@ -58,28 +59,39 @@ router.get('/', async (req, res, next) => {
     const p = await getOrCreate(user.id);
     const account = typeof req.query.account === 'string' && req.query.account !== 'all' ? req.query.account : null;
 
+    // Everything is reported in one display currency; CAD is the default.
+    const display: FxCurrency = req.query.currency === 'USD' ? 'USD' : 'CAD';
+    const rate = await usdToCad();
+    /** Money in a holding's native currency → the display currency. */
+    const toDisplay = (amount: number | null, from: FxCurrency): number | null =>
+      amount == null ? null : convert(amount, from, display, rate);
+
     const holdings = account ? p.holdings.filter((h) => h.account === account) : p.holdings;
 
-    // Enrich each holding with a live quote
+    // Enrich each holding with a live quote, converted into the display currency
     const enriched = await Promise.all(
       holdings.map(async (h) => {
         const q = await liveQuote(h.ticker);
-        const price = q?.price ?? null;
+        const native = h.currency as FxCurrency;
+        const price = toDisplay(q?.price ?? null, native);
+        const avgCost = toDisplay(h.avgCost, native) ?? 0;
         const marketValue = price != null ? price * h.quantity : null;
-        const costBasis = h.avgCost * h.quantity;
+        const costBasis = avgCost * h.quantity;
         const allTimeReturn = marketValue != null ? marketValue - costBasis : null;
         const allTimeReturnPct = costBasis > 0 && allTimeReturn != null ? (allTimeReturn / costBasis) * 100 : null;
-        const todayReturn = q?.change != null && price != null ? q.change * h.quantity : null;
+        const change = toDisplay(q?.change ?? null, native);
+        const todayReturn = change != null && price != null ? change * h.quantity : null;
         return {
           id: (h as any)._id?.toString(),
           ticker: h.ticker,
           quantity: h.quantity,
-          avgCost: h.avgCost,
-          currency: h.currency,
+          avgCost,
+          currency: display,
+          nativeCurrency: native,
           account: h.account,
           color: tickerColor(h.ticker),
           price,
-          change: q?.change ?? null,
+          change,
           changePct: q?.changePct ?? null,
           marketValue,
           costBasis,
@@ -94,7 +106,7 @@ router.get('/', async (req, res, next) => {
     const totalCost = enriched.reduce((s, h) => s + h.costBasis, 0);
     const todayChange = enriched.reduce((s, h) => s + (h.todayReturn ?? 0), 0);
     const allTimeReturn = investedValue - totalCost;
-    const cash = account ? 0 : p.cash;
+    const cash = account ? 0 : toDisplay(p.cash, p.cashCurrency as FxCurrency) ?? 0;
     const totalValue = investedValue + cash;
 
     // Allocation % of invested value
@@ -103,17 +115,42 @@ router.get('/', async (req, res, next) => {
     }
     enriched.sort((a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0));
 
+    // Per-account rollup so the UI can group holdings by RRSP/TFSA/etc.
+    const accountMap = new Map<string, { name: string; value: number; cost: number; todayChange: number; holdings: number }>();
+    for (const h of enriched) {
+      const row = accountMap.get(h.account) ?? { name: h.account, value: 0, cost: 0, todayChange: 0, holdings: 0 };
+      row.value += h.marketValue ?? 0;
+      row.cost += h.costBasis;
+      row.todayChange += h.todayReturn ?? 0;
+      row.holdings += 1;
+      accountMap.set(h.account, row);
+    }
+    const accountSummaries = [...accountMap.values()]
+      .map((a) => ({
+        ...a,
+        allTimeReturn: a.value - a.cost,
+        allTimeReturnPct: a.cost > 0 ? ((a.value - a.cost) / a.cost) * 100 : 0,
+        allocation: investedValue > 0 ? (a.value / investedValue) * 100 : 0,
+      }))
+      .sort((a, b) => b.value - a.value);
+
     // Value history — sum of (closes × quantity) across holdings, aligned by length
     let history: number[] = [];
     if (enriched.length) {
       const DAYS = 30;
-      const series = await Promise.all(holdings.map(async (h) => ({ q: h.quantity, closes: await closes(h.ticker, DAYS) })));
+      const series = await Promise.all(
+        holdings.map(async (h) => ({
+          q: h.quantity,
+          native: h.currency as FxCurrency,
+          closes: await closes(h.ticker, DAYS),
+        }))
+      );
       const minLen = Math.min(...series.map((s) => s.closes.length).filter((n) => n > 0), DAYS);
       if (minLen && Number.isFinite(minLen)) {
         history = Array.from({ length: minLen }, (_, i) =>
           series.reduce((sum, s) => {
             const c = s.closes.slice(-minLen);
-            return sum + (c[i] ?? 0) * s.q;
+            return sum + (toDisplay(c[i] ?? 0, s.native) ?? 0) * s.q;
           }, cash)
         );
       }
@@ -128,9 +165,9 @@ router.get('/', async (req, res, next) => {
         type: t.type,
         ticker: t.ticker ?? null,
         quantity: t.quantity ?? null,
-        price: t.price ?? null,
-        amount: t.amount,
-        currency: t.currency,
+        price: toDisplay(t.price ?? null, t.currency as FxCurrency),
+        amount: toDisplay(t.amount, t.currency as FxCurrency) ?? t.amount,
+        currency: display,
         note: t.note ?? null,
         color: t.ticker ? tickerColor(t.ticker) : '#4b5563',
       }));
@@ -141,8 +178,11 @@ router.get('/', async (req, res, next) => {
 
     res.json({
       accounts: p.accounts,
+      accountSummaries,
       cash,
-      cashCurrency: p.cashCurrency,
+      cashCurrency: display,
+      displayCurrency: display,
+      fxRate: rate,
       holdings: enriched,
       transactions,
       history,
@@ -327,18 +367,55 @@ async function ensureSnaptradeUser(equityIQUserId: string) {
   });
 }
 
-// GET /snaptrade/status
+// GET /snaptrade/status — includes the brokers currently linked
 router.get('/snaptrade/status', async (req, res, next) => {
   try {
     const user = req.user as IUser;
     const auth = await SnaptradeAuth.findOne({ user: user.id });
+
+    let brokers: Array<{ id: string; name: string; slug: string; logoUrl: string | null; disabled: boolean; accounts: number }> = [];
+    if (auth) {
+      try {
+        const [connections, accounts] = await Promise.all([
+          SnaptradeSDK.listConnections(auth.snaptradeUserId, auth.snaptradeUserSecret) as Promise<any[]>,
+          SnaptradeSDK.listAccounts(auth.snaptradeUserId, auth.snaptradeUserSecret) as Promise<any[]>,
+        ]);
+        brokers = (connections ?? []).map((c: any) => ({
+          id: c.id,
+          name: c.brokerage?.display_name || c.brokerage?.name || 'Brokerage',
+          slug: c.brokerage?.slug || '',
+          logoUrl: c.brokerage?.aws_s3_square_logo_url || c.brokerage?.aws_s3_logo_url || null,
+          disabled: Boolean(c.disabled),
+          accounts: (accounts ?? []).filter((a: any) => a.brokerage_authorization === c.id).length,
+        }));
+      } catch (err) {
+        // A rejected credential shouldn't blank the whole card — report zero brokers.
+        console.warn('Could not list Snaptrade connections:', snapError(err).error);
+      }
+    }
+
     res.json({
       configured: SnaptradeSDK.snaptradeConfigured,
-      isConnected: auth?.isConnected ?? false,
+      isConnected: (auth?.isConnected ?? false) && brokers.length > 0,
       connectedAt: auth?.connectedAt,
       lastSyncAt: auth?.lastSyncAt,
+      brokers,
     });
   } catch (err) { next(err); }
+});
+
+// DELETE /snaptrade/connections/:id — unlink one brokerage, keep the rest
+router.delete('/snaptrade/connections/:id', async (req, res) => {
+  try {
+    const user = req.user as IUser;
+    const auth = await SnaptradeAuth.findOne({ user: user.id });
+    if (!auth) { res.status(400).json({ error: 'Snaptrade is not connected.' }); return; }
+    await SnaptradeSDK.removeConnection(auth.snaptradeUserId, auth.snaptradeUserSecret, req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    const { status, error } = snapError(err);
+    res.status(status).json({ error });
+  }
 });
 
 // POST /snaptrade/register — create the Snaptrade-side user account

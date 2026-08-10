@@ -225,8 +225,12 @@ export const journal = {
 };
 
 export const portfolio = {
-  get: (account?: string) =>
-    api.get<import('../types').PortfolioData>('/portfolio', { params: account ? { account } : {} }).then((r) => r.data),
+  get: (account?: string, currency?: string) =>
+    api
+      .get<import('../types').PortfolioData>('/portfolio', {
+        params: { ...(account ? { account } : {}), ...(currency ? { currency } : {}) },
+      })
+      .then((r) => r.data),
   addHolding: (payload: { ticker: string; quantity: number; avgCost: number; currency?: string; account?: string }) =>
     api.post('/portfolio/holdings', payload).then((r) => r.data),
   updateHolding: (id: string, payload: Partial<{ quantity: number; avgCost: number; currency: string; account: string }>) =>
@@ -251,6 +255,8 @@ export const portfolio = {
       api.post<{ ok: boolean; lastSyncAt: string }>('/portfolio/snaptrade/sync').then((r) => r.data),
     disconnect: () =>
       api.post('/portfolio/snaptrade/disconnect').then(() => undefined),
+    removeConnection: (id: string) =>
+      api.delete(`/portfolio/snaptrade/connections/${id}`).then(() => undefined),
   },
 };
 

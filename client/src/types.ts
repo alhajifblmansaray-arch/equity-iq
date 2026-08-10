@@ -690,6 +690,8 @@ export interface PortfolioHolding {
   quantity: number;
   avgCost: number;
   currency: Currency;
+  /** Currency the brokerage actually holds this in, before conversion. */
+  nativeCurrency?: Currency;
   account: string;
   color: string;
   price: number | null;
@@ -726,15 +728,40 @@ export interface PortfolioSummary {
   allTimeReturnPct: number;
 }
 
+export interface ConnectedBroker {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  disabled: boolean;
+  accounts: number;
+}
+
 export interface SnaptradeStatus {
   configured: boolean;
   isConnected: boolean;
   connectedAt?: string;
   lastSyncAt?: string;
+  brokers: ConnectedBroker[];
+}
+
+export interface PortfolioAccountSummary {
+  name: string;
+  value: number;
+  cost: number;
+  todayChange: number;
+  holdings: number;
+  allTimeReturn: number;
+  allTimeReturnPct: number;
+  allocation: number;
 }
 
 export interface PortfolioData {
   accounts: string[];
+  accountSummaries: PortfolioAccountSummary[];
+  displayCurrency: Currency;
+  /** USD→CAD spot used for conversion; null when no source was reachable. */
+  fxRate: number | null;
   cash: number;
   cashCurrency: Currency;
   holdings: PortfolioHolding[];
