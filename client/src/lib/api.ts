@@ -237,6 +237,10 @@ export const portfolio = {
         params: { ...(account ? { account } : {}), ...(currency ? { currency } : {}) },
       })
       .then((r) => r.data),
+  insights: (currency?: string) =>
+    api
+      .get<import('../types').PortfolioInsights>('/portfolio/insights', { params: currency ? { currency } : {} })
+      .then((r) => r.data),
   addHolding: (payload: { ticker: string; quantity: number; avgCost: number; currency?: string; account?: string }) =>
     api.post('/portfolio/holdings', payload).then((r) => r.data),
   updateHolding: (id: string, payload: Partial<{ quantity: number; avgCost: number; currency: string; account: string }>) =>

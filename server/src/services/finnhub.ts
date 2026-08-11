@@ -203,3 +203,66 @@ export async function finnhubMarketEarnings(daysAhead = 14): Promise<EarningsEve
     return null;
   }
 }
+
+export interface FinnhubMetrics {
+  beta?: number;
+  peRatio?: number;
+  forwardPE?: number;
+  priceToBook?: number;
+  priceToSales?: number;
+  eps?: number;
+  dividendYield?: number;      // fraction, to match the other providers
+  profitMargin?: number;
+  operatingMargin?: number;
+  returnOnEquity?: number;
+  marketCap?: number;
+  fiftyTwoWeekHigh?: number;
+  fiftyTwoWeekLow?: number;
+}
+
+/**
+ * Basic financials, the free tier's fundamentals endpoint.
+ *
+ * Preferred over Alpha Vantage for ratios: it allows 60 requests a minute rather
+ * than 25 a day, and covers more of a typical book. Percentages come back as
+ * whole numbers here (17.44 meaning 17.44%), so they are divided to match the
+ * fraction convention used elsewhere.
+ */
+export async function finnhubMetrics(ticker: string): Promise<FinnhubMetrics | null> {
+  const k = key();
+  if (!k) return null;
+  try {
+    const { data } = await axios.get(`${BASE}/stock/metric`, {
+      params: { symbol: ticker, metric: 'all', token: k },
+      timeout: 8000,
+    });
+    const m = data?.metric;
+    if (!m || typeof m !== 'object') return null;
+
+    const n = (v: unknown): number | undefined =>
+      typeof v === 'number' && Number.isFinite(v) && v !== 0 ? v : undefined;
+    const asFraction = (v: unknown): number | undefined => {
+      const x = n(v);
+      return x == null ? undefined : x / 100;
+    };
+
+    return {
+      beta: n(m.beta),
+      peRatio: n(m.peTTM) ?? n(m.peNormalizedAnnual),
+      forwardPE: n(m.peNormalizedAnnual),
+      priceToBook: n(m.pbAnnual) ?? n(m.pbQuarterly),
+      priceToSales: n(m.psTTM) ?? n(m.psAnnual),
+      eps: n(m.epsTTM) ?? n(m.epsAnnual),
+      dividendYield: asFraction(m.dividendYieldIndicatedAnnual),
+      profitMargin: asFraction(m.netProfitMarginTTM),
+      operatingMargin: asFraction(m.operatingMarginTTM),
+      returnOnEquity: asFraction(m.roeTTM),
+      // Reported in millions.
+      marketCap: n(m.marketCapitalization) != null ? n(m.marketCapitalization)! * 1_000_000 : undefined,
+      fiftyTwoWeekHigh: n(m['52WeekHigh']),
+      fiftyTwoWeekLow: n(m['52WeekLow']),
+    };
+  } catch {
+    return null;
+  }
+}

@@ -8,3 +8,7 @@ build
 .idea
 .vscode
 coverage
+
+# Downloaded credential files (Google OAuth client JSON, etc). Never commit these.
+Important Documents/
+*client_secret*.json

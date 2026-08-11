@@ -9,6 +9,7 @@ import { finnhubQuote } from '../services/finnhub';
 import { yahooQuote, yahooHistory } from '../services/yahoo';
 import * as SnaptradeSDK from '../services/snaptradeSDK';
 import { usdToCad, convert, type Currency as FxCurrency } from '../services/fx';
+import { getFundamentalsBatch } from '../services/fundamentals';
 
 const router = Router();
 router.use(requireAuth);
@@ -195,6 +196,165 @@ router.get('/', async (req, res, next) => {
         todayChangePct: investedValue - todayChange > 0 ? (todayChange / (investedValue - todayChange)) * 100 : 0,
         allTimeReturn,
         allTimeReturnPct: totalCost > 0 ? (allTimeReturn / totalCost) * 100 : 0,
+      },
+    });
+  } catch (err) { next(err); }
+});
+
+// ── GET /insights — fundamentals-driven analytics across the book ──────────────
+router.get('/insights', async (req, res, next) => {
+  try {
+    const user = req.user as IUser;
+    const p = await getOrCreate(user.id);
+    if (!p.holdings.length) {
+      res.json({ holdings: [], sectors: [], metrics: null, contributors: [], upcomingEarnings: [], coverage: { total: 0, priced: 0, withFundamentals: 0 } });
+      return;
+    }
+
+    const display: FxCurrency = req.query.currency === 'USD' ? 'USD' : 'CAD';
+    const rate = await usdToCad();
+    const toDisplay = (amount: number | null, from: FxCurrency) =>
+      amount == null ? null : convert(amount, from, display, rate);
+
+    const { data: fundamentals, pending } = await getFundamentalsBatch(p.holdings.map((h) => h.ticker));
+
+    // Value each position first; everything below is weighted by market value.
+    const rows = await Promise.all(
+      p.holdings.map(async (h) => {
+        const native = h.currency as FxCurrency;
+        const q = await liveQuote(h.ticker);
+        const price = toDisplay(q?.price ?? null, native);
+        const avgCost = toDisplay(h.avgCost, native) ?? 0;
+        const f = fundamentals.get(h.ticker.toUpperCase()) ?? null;
+        const marketValue = price != null ? price * h.quantity : null;
+        const costBasis = avgCost * h.quantity;
+
+        // 52-week band, converted so it is comparable to the displayed price.
+        const high = toDisplay(f?.fiftyTwoWeekHigh ?? null, native);
+        const low = toDisplay(f?.fiftyTwoWeekLow ?? null, native);
+        const target = toDisplay(f?.analystTargetPrice ?? null, native);
+
+        return {
+          ticker: h.ticker,
+          account: h.account,
+          color: tickerColor(h.ticker),
+          name: f?.name ?? null,
+          logo: f?.logo ?? null,
+          sector: f?.sector ?? 'Unclassified',
+          industry: f?.industry ?? null,
+          quantity: h.quantity,
+          price,
+          marketValue,
+          costBasis,
+          unrealized: marketValue != null ? marketValue - costBasis : null,
+          unrealizedPct: marketValue != null && costBasis > 0 ? ((marketValue - costBasis) / costBasis) * 100 : null,
+          // Where the price sits in its own yearly range: 0 = at the low, 100 = at the high.
+          rangePosition:
+            price != null && high != null && low != null && high > low
+              ? ((price - low) / (high - low)) * 100
+              : null,
+          fiftyTwoWeekHigh: high,
+          fiftyTwoWeekLow: low,
+          analystTargetPrice: target,
+          upsideToTarget: price != null && target != null && price > 0 ? ((target - price) / price) * 100 : null,
+          beta: f?.beta ?? null,
+          peRatio: f?.peRatio ?? null,
+          forwardPE: f?.forwardPE ?? null,
+          priceToBook: f?.priceToBook ?? null,
+          profitMargin: f?.profitMargin ?? null,
+          returnOnEquity: f?.returnOnEquity ?? null,
+          dividendYield: f?.dividendYield ?? null,
+          annualDividend: f?.dividendYield != null && marketValue != null ? marketValue * f.dividendYield : null,
+          marketCap: f?.marketCap ?? null,
+          nextEarnings: f?.nextEarnings ?? null,
+        };
+      })
+    );
+
+    const invested = rows.reduce((s, r) => s + (r.marketValue ?? 0), 0);
+    const totalCost = rows.reduce((s, r) => s + r.costBasis, 0);
+    const weight = (r: typeof rows[number]) => (invested > 0 ? (r.marketValue ?? 0) / invested : 0);
+
+    // Weighted averages skip holdings missing the metric and renormalise, so one
+    // unclassified position does not drag the average toward zero.
+    function weightedAvg(pick: (r: typeof rows[number]) => number | null): number | null {
+      let sum = 0, w = 0;
+      for (const r of rows) {
+        const v = pick(r);
+        if (v == null || !Number.isFinite(v)) continue;
+        sum += v * weight(r);
+        w += weight(r);
+      }
+      return w > 0 ? sum / w : null;
+    }
+
+    // Sector mix
+    const sectorMap = new Map<string, { name: string; value: number; holdings: number }>();
+    for (const r of rows) {
+      const row = sectorMap.get(r.sector) ?? { name: r.sector, value: 0, holdings: 0 };
+      row.value += r.marketValue ?? 0;
+      row.holdings += 1;
+      sectorMap.set(r.sector, row);
+    }
+    const sectors = [...sectorMap.values()]
+      .map((s) => ({ ...s, allocation: invested > 0 ? (s.value / invested) * 100 : 0 }))
+      .sort((a, b) => b.value - a.value);
+
+    // What actually moved the book, in dollars and as a share of total gain.
+    const totalGain = rows.reduce((s, r) => s + (r.unrealized ?? 0), 0);
+    const contributors = rows
+      .filter((r) => r.unrealized != null)
+      .map((r) => ({
+        ticker: r.ticker,
+        color: r.color,
+        contribution: r.unrealized as number,
+        contributionPct: totalGain !== 0 ? ((r.unrealized as number) / Math.abs(totalGain)) * 100 : 0,
+        weight: weight(r) * 100,
+      }))
+      .sort((a, b) => b.contribution - a.contribution);
+
+    const upcomingEarnings = rows
+      .filter((r) => r.nextEarnings?.date)
+      .map((r) => ({ ticker: r.ticker, color: r.color, date: r.nextEarnings!.date, estimate: r.nextEarnings!.estimate }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .slice(0, 6);
+
+    const annualDividendIncome = rows.reduce((s, r) => s + (r.annualDividend ?? 0), 0);
+    const withFundamentals = rows.filter((r) => r.beta != null || r.peRatio != null).length;
+
+    res.json({
+      displayCurrency: display,
+      holdings: rows.sort((a, b) => (b.marketValue ?? 0) - (a.marketValue ?? 0)),
+      sectors,
+      contributors,
+      upcomingEarnings,
+      metrics: {
+        invested,
+        totalCost,
+        totalGain,
+        weightedBeta: weightedAvg((r) => r.beta),
+        weightedPE: weightedAvg((r) => r.peRatio),
+        weightedForwardPE: weightedAvg((r) => r.forwardPE),
+        weightedMargin: weightedAvg((r) => r.profitMargin),
+        annualDividendIncome,
+        dividendYieldOnValue: invested > 0 ? (annualDividendIncome / invested) * 100 : 0,
+        sectorCount: sectors.length,
+        topSector: sectors[0]?.name ?? null,
+        topSectorPct: sectors[0]?.allocation ?? 0,
+        winners: rows.filter((r) => (r.unrealized ?? 0) > 0).length,
+        losers: rows.filter((r) => (r.unrealized ?? 0) < 0).length,
+        // Names sitting in the top or bottom tenth of their own yearly range.
+        nearHigh: rows.filter((r) => (r.rangePosition ?? 0) >= 90).map((r) => r.ticker),
+        nearLow: rows.filter((r) => r.rangePosition != null && r.rangePosition <= 10).map((r) => r.ticker),
+        avgUpsideToTarget: weightedAvg((r) => r.upsideToTarget),
+      },
+      coverage: {
+        total: rows.length,
+        priced: rows.filter((r) => r.price != null).length,
+        withFundamentals,
+        // Still to be fetched; the provider is rate limited so they fill in over
+        // subsequent loads rather than all at once.
+        pending,
       },
     });
   } catch (err) { next(err); }

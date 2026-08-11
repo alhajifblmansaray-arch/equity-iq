@@ -772,3 +772,65 @@ export interface PortfolioData {
   summary: PortfolioSummary;
   snaptrade?: SnaptradeStatus;
 }
+
+/* ── Portfolio insights ───────────────────────────────────────────────────── */
+
+export interface HoldingInsight {
+  ticker: string;
+  account: string;
+  color: string;
+  name: string | null;
+  logo: string | null;
+  sector: string;
+  industry: string | null;
+  quantity: number;
+  price: number | null;
+  marketValue: number | null;
+  costBasis: number;
+  unrealized: number | null;
+  unrealizedPct: number | null;
+  /** 0 = at the 52-week low, 100 = at the high. */
+  rangePosition: number | null;
+  fiftyTwoWeekHigh: number | null;
+  fiftyTwoWeekLow: number | null;
+  analystTargetPrice: number | null;
+  upsideToTarget: number | null;
+  beta: number | null;
+  peRatio: number | null;
+  forwardPE: number | null;
+  priceToBook: number | null;
+  profitMargin: number | null;
+  returnOnEquity: number | null;
+  dividendYield: number | null;
+  annualDividend: number | null;
+  marketCap: number | null;
+  nextEarnings: { date: string; estimate: number | null } | null;
+}
+
+export interface PortfolioInsights {
+  displayCurrency: Currency;
+  holdings: HoldingInsight[];
+  sectors: Array<{ name: string; value: number; holdings: number; allocation: number }>;
+  contributors: Array<{ ticker: string; color: string; contribution: number; contributionPct: number; weight: number }>;
+  upcomingEarnings: Array<{ ticker: string; color: string; date: string; estimate: number | null }>;
+  metrics: {
+    invested: number;
+    totalCost: number;
+    totalGain: number;
+    weightedBeta: number | null;
+    weightedPE: number | null;
+    weightedForwardPE: number | null;
+    weightedMargin: number | null;
+    annualDividendIncome: number;
+    dividendYieldOnValue: number;
+    sectorCount: number;
+    topSector: string | null;
+    topSectorPct: number;
+    winners: number;
+    losers: number;
+    nearHigh: string[];
+    nearLow: string[];
+    avgUpsideToTarget: number | null;
+  } | null;
+  coverage: { total: number; priced: number; withFundamentals: number; pending: number };
+}

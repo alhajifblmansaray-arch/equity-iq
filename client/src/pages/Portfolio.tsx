@@ -10,6 +10,7 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import Sparkline from '../components/Sparkline';
 import SnaptradeConnect from '../components/SnaptradeConnect';
 import CurrencyToggle from '../components/CurrencyToggle';
+import InsightsTab from '../components/portfolio/InsightsTab';
 import {
   money, dollars, pct, compact, pnlColor, Monogram, ReturnCell, AreaChart, Donut, Stat, concentration,
 } from '../components/portfolio/primitives';
@@ -18,7 +19,7 @@ import type { PortfolioData, PortfolioHolding, PortfolioTransaction } from '../t
 const EASE = [0.16, 1, 0.3, 1] as [number, number, number, number];
 const RANGES = ['1W', '1M', '3M', 'YTD', '1Y', 'ALL'] as const;
 type Range = (typeof RANGES)[number];
-const TABS = ['Overview', 'Accounts', 'Holdings', 'Activity'] as const;
+const TABS = ['Overview', 'Accounts', 'Holdings', 'Insights', 'Activity'] as const;
 type Tab = (typeof TABS)[number];
 
 const ACTIVITY_LABEL: Record<string, string> = {
@@ -207,6 +208,10 @@ export default function Portfolio() {
                   onDelete={async (h) => { await portfolioApi.removeHolding(h.id); load(); }}
                   onOpen={(t) => navigate(`/dashboard?ticker=${t}`)}
                 />
+              )}
+
+              {tab === 'Insights' && (
+                <InsightsTab currency={cur} onOpenTicker={(t) => navigate(`/dashboard?ticker=${t}`)} />
               )}
 
               {tab === 'Activity' && (
