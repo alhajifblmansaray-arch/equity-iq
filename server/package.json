@@ -9,7 +9,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "sync:snaptrade": "ts-node src/scripts/syncSnaptrade.ts"
+    "sync:snaptrade": "ts-node src/scripts/syncSnaptrade.ts",
+    "sync:snaptrade:prod": "node dist/scripts/syncSnaptrade.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

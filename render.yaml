@@ -1,0 +1,49 @@
+# Render blueprint — https://render.com/docs/blueprint-spec
+#
+# One web service runs both the API and the built React client from a single
+# origin, so there is no CORS hop and the session cookie just works.
+#
+# Deploying: Render → New → Blueprint → pick this repo. Secrets are marked
+# sync:false, so Render prompts for them once instead of storing them in git.
+services:
+  - type: web
+    name: equity-iq
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    # Installs devDependencies explicitly: tsc and vite live there, and setting
+    # NODE_ENV=production would otherwise cause npm to skip them and fail the build.
+    buildCommand: npm run install:all && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      # Same-origin: the API serves the client, so this is the service's own URL.
+      - key: CLIENT_ORIGIN
+        fromService:
+          type: web
+          name: equity-iq
+          property: host
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: TWELVE_DATA_API_KEY
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: ALPHA_VANTAGE_API_KEY
+        sync: false
+      - key: MASSIVE_API_KEY
+        sync: false
+      - key: SNAPTRADE_CLIENT_ID
+        sync: false
+      - key: SNAPTRADE_CONSUMER_KEY
+        sync: false
