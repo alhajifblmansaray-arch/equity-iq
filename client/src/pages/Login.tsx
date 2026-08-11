@@ -24,7 +24,9 @@ export default function Login() {
     setSubmitting(true);
     try {
       await login(email, password);
-      nav('/portfolio');
+      // Return to whatever they were trying to reach before signing in.
+      const from = (loc.state as { from?: string } | null)?.from;
+      nav(from && from !== '/' ? from : '/portfolio');
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Could not sign in.');
     } finally {

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowRight,
@@ -23,6 +23,9 @@ const fade = (delay = 0) => ({
 });
 
 export default function Landing() {
+  // Set when a signed-out visitor was bounced here from a protected page.
+  const from = (useLocation().state as { from?: string } | null)?.from;
+  const authState = from ? { from } : undefined;
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -49,8 +52,8 @@ export default function Landing() {
               </Link>
             ) : (
               <>
-                <Link to="/login" className="btn-ghost">Log in</Link>
-                <Link to="/signup" className="btn-primary">Create account</Link>
+                <Link to="/login" state={authState} className="btn-ghost">Log in</Link>
+                <Link to="/signup" state={authState} className="btn-primary">Create account</Link>
               </>
             )}
           </nav>
@@ -96,10 +99,10 @@ export default function Landing() {
                 </Link>
               ) : (
                 <>
-                  <Link to="/signup" className="btn-forest text-base px-6 py-3">
+                  <Link to="/signup" state={authState} className="btn-forest text-base px-6 py-3">
                     Get started — free <ArrowRight size={17} />
                   </Link>
-                  <Link to="/login" className="btn-ghost text-base px-6 py-3">
+                  <Link to="/login" state={authState} className="btn-ghost text-base px-6 py-3">
                     Log in
                   </Link>
                 </>

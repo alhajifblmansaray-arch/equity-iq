@@ -1,4 +1,4 @@
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { WatchlistProvider } from './contexts/WatchlistContext';
 import { CurrencyProvider } from './contexts/CurrencyContext';
@@ -36,8 +36,10 @@ function FullScreenLoader() {
 
 function AuthenticatedShell() {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <FullScreenLoader />;
-  if (!user) return <Navigate to="/login" replace />;
+  // Carry the attempted path so signing in returns them to it.
+  if (!user) return <Navigate to="/" replace state={{ from: location.pathname + location.search }} />;
   return (
     <AiJobsProvider>
       <CurrencyProvider>
