@@ -16,6 +16,9 @@ export interface IUser extends Document {
   badges: string[];
   lessonStreak: number;
   lastLessonAt?: Date;
+  /** SHA-256 of the reset token. The raw token only ever exists in the emailed link. */
+  resetTokenHash?: string;
+  resetTokenExpires?: Date;
   createdAt: Date;
   comparePassword(plain: string): Promise<boolean>;
 }
@@ -33,6 +36,8 @@ const UserSchema = new Schema<IUser>(
     badges: { type: [String], default: [] },
     lessonStreak: { type: Number, default: 0 },
     lastLessonAt: { type: Date },
+    resetTokenHash: { type: String, index: true },
+    resetTokenExpires: { type: Date },
   },
   { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } }
 );

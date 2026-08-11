@@ -76,6 +76,8 @@ export {
 
   // Auth & security
   Lock,
+  Eye,
+  EyeSlash as EyeOff,
   User,
 
   // Social

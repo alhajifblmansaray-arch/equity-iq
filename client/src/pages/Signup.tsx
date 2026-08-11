@@ -1,8 +1,9 @@
 import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowRight, Mail, Lock, User as UserIcon } from '../lib/icons';
+import { AlertCircle, ArrowRight, Mail, User as UserIcon } from '../lib/icons';
 import Logo from '../components/Logo';
 import { useAuth } from '../contexts/AuthContext';
+import PasswordField from '../components/PasswordField';
 
 export default function Signup() {
   const { signup, googleEnabled } = useAuth();
@@ -23,7 +24,7 @@ export default function Signup() {
     setSubmitting(true);
     try {
       await signup(email, password, name);
-      nav('/dashboard');
+      nav('/portfolio');
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Could not create account.');
     } finally {
@@ -58,7 +59,15 @@ export default function Signup() {
             <form onSubmit={onSubmit} className="space-y-4">
               <Field icon={<UserIcon size={16} />} label="Name" type="text" value={name} onChange={setName} placeholder="Alex Morgan" autoFocus />
               <Field icon={<Mail size={16} />} label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" />
-              <Field icon={<Lock size={16} />} label="Password" type="password" value={password} onChange={setPassword} placeholder="At least 8 characters" />
+              <label className="block">
+                <span className="eyebrow block mb-2">Password</span>
+                <PasswordField
+                  value={password}
+                  onChange={setPassword}
+                  placeholder="At least 8 characters"
+                  autoComplete="new-password"
+                />
+              </label>
               <button type="submit" disabled={submitting} className="btn-primary w-full text-base py-3 disabled:opacity-50">
                 {submitting ? 'Creating account…' : <>Create account <ArrowRight size={16} className="ml-1.5" /></>}
               </button>

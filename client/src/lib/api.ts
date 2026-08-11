@@ -38,6 +38,12 @@ export const auth = {
   signup: (email: string, password: string, name: string) =>
     api.post<{ user: User }>('/auth/signup', { email, password, name }).then((r) => r.data.user),
   logout: () => api.post('/auth/logout').then(() => undefined),
+  forgotPassword: (email: string) =>
+    api.post<{ ok: boolean; message: string; devLink?: string }>('/auth/forgot-password', { email }).then((r) => r.data),
+  checkResetToken: (token: string) =>
+    api.get<{ valid: boolean; email: string | null }>(`/auth/reset-password/${encodeURIComponent(token)}`).then((r) => r.data),
+  resetPassword: (token: string, password: string) =>
+    api.post<{ user: User }>('/auth/reset-password', { token, password }).then((r) => r.data.user),
 };
 
 export type IntradayInterval = '1min' | '5min' | '15min' | '30min' | '1h';

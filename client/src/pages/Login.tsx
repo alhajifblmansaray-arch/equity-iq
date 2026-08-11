@@ -1,8 +1,9 @@
 import { FormEvent, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowRight, Mail, Lock } from '../lib/icons';
+import { AlertCircle, ArrowRight, Mail } from '../lib/icons';
 import Logo from '../components/Logo';
 import { useAuth } from '../contexts/AuthContext';
+import PasswordField from '../components/PasswordField';
 
 export default function Login() {
   const { login, googleEnabled } = useAuth();
@@ -23,7 +24,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       await login(email, password);
-      nav('/dashboard');
+      nav('/portfolio');
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Could not sign in.');
     } finally {
@@ -65,14 +66,15 @@ export default function Login() {
                 placeholder="you@example.com"
                 autoFocus
               />
-              <Field
-                icon={<Lock size={16} />}
-                label="Password"
-                type="password"
-                value={password}
-                onChange={setPassword}
-                placeholder="••••••••"
-              />
+              <label className="block">
+                <span className="flex items-center justify-between mb-2">
+                  <span className="eyebrow">Password</span>
+                  <Link to="/forgot-password" className="text-[12px] text-ink-secondary hover:text-ink transition">
+                    Forgot?
+                  </Link>
+                </span>
+                <PasswordField value={password} onChange={setPassword} autoComplete="current-password" />
+              </label>
               <button
                 type="submit"
                 disabled={submitting}

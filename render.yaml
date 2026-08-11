@@ -47,3 +47,9 @@ services:
         sync: false
       - key: SNAPTRADE_CONSUMER_KEY
         sync: false
+      # Password-reset email. Without a key the link is only logged server-side,
+      # so reset is unusable in production until this is set.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        value: EquityIQ <onboarding@resend.dev>
