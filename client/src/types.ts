@@ -587,7 +587,7 @@ export interface TradeEntry {
     exitPrice?: number;
     shares: number;
   };
-  // Option fields — P&L uses premium × contracts × multiplier, NOT underlying price
+  // Option fields - P&L uses premium × contracts × multiplier, NOT underlying price
   optionDetails?: {
     contractType: 'call' | 'put';
     strike: number;
@@ -767,7 +767,7 @@ export interface PortfolioData {
   holdings: PortfolioHolding[];
   transactions: PortfolioTransaction[];
   history: number[];
-  /** Holdings no quote provider could price — excluded from every total below. */
+  /** Holdings no quote provider could price - excluded from every total below. */
   unpricedTickers?: string[];
   summary: PortfolioSummary;
   snaptrade?: SnaptradeStatus;

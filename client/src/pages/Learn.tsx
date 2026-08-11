@@ -336,8 +336,8 @@ function LessonModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6"
-      style={{ background: 'rgba(20,15,5,0.55)', backdropFilter: 'blur(6px)' }}
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 h-[100dvh]"
+      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
       onClick={onClose}
     >
       <motion.div
@@ -345,7 +345,7 @@ function LessonModal({
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 40 }}
         transition={{ duration: 0.35, ease: EASE }}
-        className="w-full md:max-w-2xl max-h-[92vh] overflow-y-auto rounded-t-3xl md:rounded-3xl"
+        className="w-full md:max-w-2xl max-h-[88dvh] md:max-h-[92vh] overflow-y-auto overscroll-contain rounded-t-3xl md:rounded-3xl"
         style={{
           background: 'var(--glass-sidebar-sheen), var(--glass-sidebar-bg)',
           backdropFilter: 'blur(40px) saturate(180%)',
@@ -354,7 +354,7 @@ function LessonModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6 md:p-8">
+        <div className="p-6 md:p-8 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:pb-8">
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-6">
             <div>
@@ -415,7 +415,7 @@ function LessonModal({
                 {lesson.keyTerms.map((kt) => (
                   <div key={kt.term}>
                     <span className="font-semibold text-[14px]">{kt.term}</span>
-                    <span className="text-ink-secondary text-[14px]"> — {kt.definition}</span>
+                    <span className="text-ink-secondary text-[14px]"> - {kt.definition}</span>
                   </div>
                 ))}
               </div>
@@ -466,7 +466,7 @@ function LessonModal({
             )}
             {quizSubmitted && (
               <p className={`mt-3 text-sm font-medium ${quizCorrect ? 'text-forest' : 'text-brick'}`}>
-                {quizCorrect ? '✓ Correct! Great work.' : `✗ Not quite — the right answer is: "${lesson.quiz.options[lesson.quiz.correct]}"`}
+                {quizCorrect ? '✓ Correct! Great work.' : `✗ Not quite - the right answer is: "${lesson.quiz.options[lesson.quiz.correct]}"`}
               </p>
             )}
           </div>

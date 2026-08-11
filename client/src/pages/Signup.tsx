@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, ArrowRight, Mail, User as UserIcon } from '../lib/icons';
+import { AlertCircle, Mail, User as UserIcon } from '../lib/icons';
 import Logo from '../components/Logo';
 import { useAuth } from '../contexts/AuthContext';
 import PasswordField from '../components/PasswordField';
@@ -35,7 +35,7 @@ export default function Signup() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="px-6 md:px-10 h-16 flex items-center justify-between">
-        <Link to="/"><Logo size="md" /></Link>
+        <Logo size="md" />
         <Link to="/login" className="text-sm text-ink-secondary hover:text-ink">
           Already have an account? <span className="font-medium text-ink">Log in</span>
         </Link>
@@ -69,7 +69,7 @@ export default function Signup() {
                 />
               </label>
               <button type="submit" disabled={submitting} className="btn-primary w-full text-base py-3 disabled:opacity-50">
-                {submitting ? 'Creating account…' : <>Create account <ArrowRight size={16} className="ml-1.5" /></>}
+                {submitting ? 'Creating account…' : <>Create account </>}
               </button>
             </form>
 

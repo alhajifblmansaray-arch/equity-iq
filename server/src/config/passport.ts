@@ -40,7 +40,13 @@ export function configurePassport(): void {
         {
           clientID: GOOGLE_CLIENT_ID,
           clientSecret: GOOGLE_CLIENT_SECRET,
-          callbackURL: GOOGLE_CALLBACK_URL || 'http://localhost:3001/api/auth/google/callback',
+          // In production the API and client share an origin, so the callback can
+          // be derived rather than configured separately.
+          callbackURL:
+            GOOGLE_CALLBACK_URL ||
+            (process.env.NODE_ENV === 'production' && process.env.CLIENT_ORIGIN
+              ? `${process.env.CLIENT_ORIGIN}/api/auth/google/callback`
+              : 'http://localhost:3001/api/auth/google/callback'),
         },
         async (_accessToken, _refreshToken, profile, done) => {
           try {

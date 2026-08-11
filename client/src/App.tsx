@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Legal from './pages/Legal';
 import Dashboard from './pages/Dashboard';
 import Watchlist from './pages/Watchlist';
 import News from './pages/News';
@@ -67,8 +68,13 @@ export default function App() {
       <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
       <Route path="/signup" element={<PublicOnly><Signup /></PublicOnly>} />
       <Route path="/forgot-password" element={<PublicOnly><ForgotPassword /></PublicOnly>} />
-      {/* Reachable while signed in too — the link may be opened in an existing session. */}
+      {/* Reachable while signed in too - the link may be opened in an existing session. */}
       <Route path="/reset-password" element={<ResetPassword />} />
+      {/* Legal pages are reachable signed in or out. */}
+      <Route path="/terms" element={<Legal doc="terms" />} />
+      <Route path="/privacy" element={<Legal doc="privacy" />} />
+      <Route path="/security" element={<Legal doc="security" />} />
+      <Route path="/disclosure" element={<Legal doc="disclosure" />} />
       <Route element={<AuthenticatedShell />}>
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/watchlist" element={<Watchlist />} />

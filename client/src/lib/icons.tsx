@@ -1,5 +1,5 @@
 /**
- * Central icon system — Phosphor Icons with Lucide-compatible aliases.
+ * Central icon system - Phosphor Icons with Lucide-compatible aliases.
  * Import from here instead of 'lucide-react' everywhere.
  * Phosphor gives us weight control: regular / bold / fill / duotone / thin.
  */

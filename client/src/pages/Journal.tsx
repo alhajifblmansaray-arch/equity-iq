@@ -187,7 +187,7 @@ function LogForm({ prefillTicker = '', prefill, onSave, onClose }: LogFormProps)
       {prefill && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-forest/10 border border-forest/30 text-xs text-forest">
           <CheckCircle2 size={12} />
-          Pre-filled from AI — review and adjust before saving.
+          Pre-filled from AI - review and adjust before saving.
         </div>
       )}
       {/* Ticker + direction + asset */}
@@ -289,7 +289,7 @@ function LogForm({ prefillTicker = '', prefill, onSave, onClose }: LogFormProps)
 
       {/* Thesis */}
       <div>
-        <label className="block text-xs font-medium text-ink-secondary mb-1">Thesis — why are you entering?</label>
+        <label className="block text-xs font-medium text-ink-secondary mb-1">Thesis - why are you entering?</label>
         <textarea
           rows={3}
           className="w-full px-3 py-2 rounded-xl border border-glass-border bg-white/20 text-sm focus:outline-none focus:ring-2 focus:ring-forest/40 resize-none"
@@ -419,7 +419,7 @@ function CloseForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: 
   }
 
   const entryLabel = isOption
-    ? `${trade.ticker} ${trade.optionDetails?.contractType?.toUpperCase()} $${trade.optionDetails?.strike} exp ${trade.optionDetails?.expiry} — ${trade.optionDetails?.contracts}c @ $${trade.optionDetails?.entryPremium} premium`
+    ? `${trade.ticker} ${trade.optionDetails?.contractType?.toUpperCase()} $${trade.optionDetails?.strike} exp ${trade.optionDetails?.expiry} - ${trade.optionDetails?.contracts}c @ $${trade.optionDetails?.entryPremium} premium`
     : `${trade.ticker} ${trade.direction} ${trade.stockDetails?.shares} shares @ $${trade.stockDetails?.entryPrice}`;
 
   async function submit(e: React.FormEvent) {
@@ -584,7 +584,7 @@ function EditForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: T
   const [shares, setShares] = useState(trade.stockDetails?.shares?.toString() ?? '');
   const [exitPrice, setExitPrice] = useState(trade.stockDetails?.exitPrice?.toString() ?? '');
 
-  // Option fields — all four required for options
+  // Option fields - all four required for options
   const [contractType, setContractType] = useState<'call' | 'put'>(trade.optionDetails?.contractType ?? 'call');
   const [strike, setStrike] = useState(trade.optionDetails?.strike?.toString() ?? '');
   const [expiry, setExpiry] = useState(trade.optionDetails?.expiry ?? '');
@@ -651,7 +651,7 @@ function EditForm({ trade, onSave, onClose }: { trade: TradeEntry; onSave: (t: T
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      {/* Direction toggle — applies to all trade types */}
+      {/* Direction toggle - applies to all trade types */}
       <div>
         <label className="block text-xs font-medium text-ink-secondary mb-1">Direction</label>
         <div className="flex rounded-xl overflow-hidden border border-glass-border w-fit">
@@ -904,20 +904,20 @@ function TradeRow({ trade, onClose, onEdit, onDelete }: { trade: TradeEntry; onC
                 {[
                   trade.assetType === 'option' && trade.optionDetails
                     ? { label: 'Premium', val: `$${trade.optionDetails.entryPremium} × ${trade.optionDetails.contracts}c` }
-                    : { label: 'Entry', val: `$${trade.stockDetails?.entryPrice ?? '—'}` },
+                    : { label: 'Entry', val: `$${trade.stockDetails?.entryPrice ?? '-'}` },
                   trade.assetType === 'option' && trade.optionDetails
                     ? { label: 'Strike / Exp', val: `$${trade.optionDetails.strike} ${trade.optionDetails.expiry}` }
-                    : { label: 'Shares', val: `${trade.stockDetails?.shares ?? '—'}` },
+                    : { label: 'Shares', val: `${trade.stockDetails?.shares ?? '-'}` },
                   { label: 'Date', val: new Date(trade.entryDate).toLocaleDateString() },
                   ...(trade.status === 'closed' ? [
                     trade.assetType === 'option' && trade.optionDetails?.exitPremium != null
                       ? { label: 'Exit Premium', val: `$${trade.optionDetails.exitPremium}` }
-                      : { label: 'Exit', val: trade.stockDetails?.exitPrice != null ? `$${trade.stockDetails.exitPrice}` : '—' },
-                    { label: 'Held', val: `${trade.holdingPeriodDays ?? '—'}d` },
-                    { label: 'R-Multiple', val: trade.rMultiple != null ? `${trade.rMultiple.toFixed(2)}R` : '—' },
+                      : { label: 'Exit', val: trade.stockDetails?.exitPrice != null ? `$${trade.stockDetails.exitPrice}` : '-' },
+                    { label: 'Held', val: `${trade.holdingPeriodDays ?? '-'}d` },
+                    { label: 'R-Multiple', val: trade.rMultiple != null ? `${trade.rMultiple.toFixed(2)}R` : '-' },
                   ] : [
-                    { label: 'Stop', val: trade.stopLoss ? `$${trade.stopLoss}` : '—' },
-                    { label: 'Target', val: trade.targetPrice ? `$${trade.targetPrice}` : '—' },
+                    { label: 'Stop', val: trade.stopLoss ? `$${trade.stopLoss}` : '-' },
+                    { label: 'Target', val: trade.targetPrice ? `$${trade.targetPrice}` : '-' },
                     { label: 'Conviction', val: '★'.repeat(trade.convictionLevel) },
                   ]),
                 ].map(({ label, val }) => (
@@ -1007,20 +1007,20 @@ function StatsDashboard({ stats }: { stats: JournalStats }) {
         {
           label: 'Total P&L',
           val: `${stats.totalPnl >= 0 ? '+' : ''}$${stats.totalPnl.toFixed(2)}`,
-          sub: `Profit factor ${stats.profitFactor?.toFixed(2) ?? '—'}`,
+          sub: `Profit factor ${stats.profitFactor?.toFixed(2) ?? '-'}`,
           icon: <BarChart2 size={16} />,
           color: pnlColor(stats.totalPnl),
         },
         {
           label: 'Best Setup',
-          val: topSetup ? tagLabel(topSetup[0]) : '—',
+          val: topSetup ? tagLabel(topSetup[0]) : '-',
           sub: topSetup ? `${((topSetup[1].wins / topSetup[1].trades) * 100).toFixed(0)}% win rate` : 'Log more trades',
           icon: <Target size={16} />,
           color: 'text-ink',
         },
         {
           label: 'Top Mistake',
-          val: topMistake ? tagLabel(topMistake[0]) : '—',
+          val: topMistake ? tagLabel(topMistake[0]) : '-',
           sub: topMistake ? `${topMistake[1]}× tagged` : 'No mistakes logged',
           icon: <AlertTriangle size={16} />,
           color: topMistake ? 'text-brick' : 'text-ink-secondary',
@@ -1194,7 +1194,7 @@ export default function Journal() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 16 }}
               transition={{ duration: 0.2, ease: EASE }}
-              className="card w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              className="card w-full max-w-lg max-h-[85dvh] md:max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-5">
                 <h2 className="font-semibold text-ink">

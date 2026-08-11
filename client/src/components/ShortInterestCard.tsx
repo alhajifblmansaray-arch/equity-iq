@@ -39,7 +39,7 @@ export default function ShortInterestCard({ data }: Props) {
         <div>
           <div className="eyebrow mb-2">% of float</div>
           <div className="font-serif text-3xl tracking-tight1 mb-2">
-            {pct != null ? `${pct.toFixed(1)}%` : '—'}
+            {pct != null ? `${pct.toFixed(1)}%` : '-'}
           </div>
           {pct != null && (
             <div className="h-1.5 bg-cream-tint rounded-full overflow-hidden">
@@ -57,7 +57,7 @@ export default function ShortInterestCard({ data }: Props) {
         <div>
           <div className="eyebrow mb-2">Days to cover</div>
           <div className="font-serif text-3xl tracking-tight1">
-            {si.daysToCover != null ? si.daysToCover.toFixed(1) : '—'}
+            {si.daysToCover != null ? si.daysToCover.toFixed(1) : '-'}
           </div>
         </div>
       </div>

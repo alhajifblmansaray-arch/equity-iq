@@ -2,6 +2,8 @@ import 'dotenv/config';
 import path from 'path';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import session from 'express-session';
 import MongoStore from 'connect-mongo';
 import passport from 'passport';
@@ -42,13 +44,64 @@ async function main(): Promise<void> {
   const app = express();
   app.set('trust proxy', 1);
 
+  // Security headers. The CSP is scoped to what the app actually loads: its own
+  // bundle, Google Fonts, and broker logos served from Snaptrade's S3 buckets.
+  // Inline styles are permitted because React style props compile to them.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+          fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+          imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+          connectSrc: ["'self'"],
+          frameAncestors: ["'none'"],
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+          upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+        },
+      },
+      // Cross-origin isolation would block the broker logos we render.
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      hsts: process.env.NODE_ENV === 'production'
+        ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+        : false,
+    })
+  );
+
   app.use(
     cors({
       origin: CLIENT_ORIGIN,
       credentials: true,
     })
   );
+  // 2mb covers a screenshot upload to the journal parser; anything larger is refused.
   app.use(express.json({ limit: '2mb' }));
+
+  // Blanket ceiling on the API. Generous enough that normal use never notices,
+  // low enough that a runaway script or scraper is stopped.
+  app.use('/api', rateLimit({
+    windowMs: 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Please slow down.' },
+  }));
+
+  // Anthropic-backed endpoints cost real money per call, so they get their own
+  // much tighter budget on top of the blanket limit.
+  app.use(['/api/research', '/api/simulator/coach'], rateLimit({
+    windowMs: 60 * 1000,
+    max: 40,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many research requests. Please wait a moment.' },
+  }));
 
   // Serve uploaded avatars
   app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

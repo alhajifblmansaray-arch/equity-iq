@@ -188,14 +188,14 @@ export default function SnapshotCard({ data }: Props) {
 
       {/* Metrics as tiles */}
       <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-        <MetricTile label="Open"       value={s.open      ? `$${fmtPrice(s.open)}`      : '—'} />
-        <MetricTile label="High"       value={s.high      ? `$${fmtPrice(s.high)}`      : '—'} accent="forest" />
-        <MetricTile label="Low"        value={s.low       ? `$${fmtPrice(s.low)}`       : '—'} accent="brick" />
+        <MetricTile label="Open"       value={s.open      ? `$${fmtPrice(s.open)}`      : '-'} />
+        <MetricTile label="High"       value={s.high      ? `$${fmtPrice(s.high)}`      : '-'} accent="forest" />
+        <MetricTile label="Low"        value={s.low       ? `$${fmtPrice(s.low)}`       : '-'} accent="brick" />
         <MetricTile label="Volume"     value={fmtCompact(s.volume)} />
-        <MetricTile label="Prev close" value={s.prevClose ? `$${fmtPrice(s.prevClose)}` : '—'} />
+        <MetricTile label="Prev close" value={s.prevClose ? `$${fmtPrice(s.prevClose)}` : '-'} />
         <MetricTile
           label="VWAP"
-          value={s.vwap ? `$${fmtPrice(s.vwap)}` : s.marketCap ? fmtCompact(s.marketCap) : '—'}
+          value={s.vwap ? `$${fmtPrice(s.vwap)}` : s.marketCap ? fmtCompact(s.marketCap) : '-'}
           sub={s.marketCap && !s.vwap ? 'Mkt cap' : undefined}
         />
       </div>

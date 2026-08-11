@@ -1,7 +1,7 @@
 import type { ResearchReport } from '../types';
 
 export function fmtNumber(n: number | undefined | null, decimals = 2): string {
-  if (n == null || !Number.isFinite(n)) return '—';
+  if (n == null || !Number.isFinite(n)) return '-';
   return n.toLocaleString('en-US', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
@@ -9,12 +9,12 @@ export function fmtNumber(n: number | undefined | null, decimals = 2): string {
 }
 
 export function fmtPrice(n: number | undefined | null): string {
-  if (n == null || !Number.isFinite(n)) return '—';
+  if (n == null || !Number.isFinite(n)) return '-';
   return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export function fmtCompact(n: number | undefined | null): string {
-  if (n == null || !Number.isFinite(n)) return '—';
+  if (n == null || !Number.isFinite(n)) return '-';
   if (Math.abs(n) >= 1e12) return (n / 1e12).toFixed(2) + 'T';
   if (Math.abs(n) >= 1e9) return (n / 1e9).toFixed(2) + 'B';
   if (Math.abs(n) >= 1e6) return (n / 1e6).toFixed(2) + 'M';
@@ -23,12 +23,12 @@ export function fmtCompact(n: number | undefined | null): string {
 }
 
 export function fmtPct(n: number | undefined | null, decimals = 2): string {
-  if (n == null || !Number.isFinite(n)) return '—';
+  if (n == null || !Number.isFinite(n)) return '-';
   return `${n >= 0 ? '+' : ''}${n.toFixed(decimals)}%`;
 }
 
 export function fmtDate(iso: string | undefined | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   try {
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   } catch {
@@ -37,7 +37,7 @@ export function fmtDate(iso: string | undefined | null): string {
 }
 
 export function fmtRelative(iso: string | undefined | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const then = new Date(iso).getTime();
   const diff = Date.now() - then;
   const m = Math.floor(diff / 60000);
@@ -151,7 +151,7 @@ export function computeVerdict(data: ResearchReport): Verdict {
   } else if (score >= 45) {
     verdict = 'HOLD';
     color = 'amber';
-    rationale = 'Signals are mixed — wait for clearer confirmation.';
+    rationale = 'Signals are mixed - wait for clearer confirmation.';
   } else if (score >= 30) {
     verdict = 'SELL';
     color = 'brick';
@@ -159,7 +159,7 @@ export function computeVerdict(data: ResearchReport): Verdict {
   } else {
     verdict = 'STRONG SELL';
     color = 'brick';
-    rationale = 'Multiple signals are aligned bearish — significant downside risk.';
+    rationale = 'Multiple signals are aligned bearish - significant downside risk.';
   }
 
   const pillClass =
@@ -178,8 +178,8 @@ export function generateBullBear(data: ResearchReport): BullBear {
   const bear: string[] = [];
 
   const { rsi, macd, sma50, sma200 } = data.technicals;
-  if (rsi != null && rsi < 30) bull.push('RSI in oversold territory — possible reversal setup.');
-  if (rsi != null && rsi > 70) bear.push('RSI in overbought territory — momentum may exhaust.');
+  if (rsi != null && rsi < 30) bull.push('RSI in oversold territory - possible reversal setup.');
+  if (rsi != null && rsi > 70) bear.push('RSI in overbought territory - momentum may exhaust.');
   if (macd && macd.macd > 0 && macd.histogram > 0) bull.push('MACD positive with expanding histogram.');
   if (macd && macd.macd < 0 && macd.histogram < 0) bear.push('MACD negative with widening downside histogram.');
   if (sma50 != null && sma200 != null && sma50 > sma200) bull.push('Golden cross confirms a longer-term uptrend.');
@@ -190,7 +190,7 @@ export function generateBullBear(data: ResearchReport): BullBear {
   if (sp != null && sp > 25) bull.push('Crowded short positioning leaves room for a short squeeze.');
 
   if (data.valuation?.peRatio != null && data.valuation.peRatio < 15 && data.valuation.peRatio > 0)
-    bull.push(`Trades at ${data.valuation.peRatio.toFixed(1)}× earnings — undemanding multiple.`);
+    bull.push(`Trades at ${data.valuation.peRatio.toFixed(1)}× earnings - undemanding multiple.`);
   if (data.valuation?.peRatio != null && data.valuation.peRatio > 40)
     bear.push(`Rich valuation at ${data.valuation.peRatio.toFixed(1)}× earnings raises the bar.`);
   if (data.valuation?.analystTargetPrice != null && data.snapshot?.price != null) {
@@ -203,8 +203,8 @@ export function generateBullBear(data: ResearchReport): BullBear {
     const first = data.priceHistory[0].close;
     const last = data.priceHistory[data.priceHistory.length - 1].close;
     const ret = ((last - first) / first) * 100;
-    if (ret > 20) bull.push(`Strong recent momentum — up ${ret.toFixed(1)}% over the window.`);
-    if (ret < -20) bear.push(`Sharp drawdown — down ${Math.abs(ret).toFixed(1)}% over the window.`);
+    if (ret > 20) bull.push(`Strong recent momentum - up ${ret.toFixed(1)}% over the window.`);
+    if (ret < -20) bear.push(`Sharp drawdown - down ${Math.abs(ret).toFixed(1)}% over the window.`);
   }
 
   if (bull.length === 0) bull.push('No high-confidence bullish signals detected in current data.');
@@ -230,26 +230,26 @@ export function generateRisks(data: ResearchReport): Risk[] {
   if (rsi != null && rsi < 30)
     risks.push({
       label: 'Falling-knife dynamics',
-      detail: `RSI at ${rsi.toFixed(1)} — selling pressure may not be exhausted.`,
+      detail: `RSI at ${rsi.toFixed(1)} - selling pressure may not be exhausted.`,
     });
 
   const sp = data.shortInterest?.shortPercent;
   if (sp != null && sp > 15)
     risks.push({
       label: 'Short pressure',
-      detail: `${sp.toFixed(1)}% of float is sold short — elevated event risk in both directions.`,
+      detail: `${sp.toFixed(1)}% of float is sold short - elevated event risk in both directions.`,
     });
 
   if (sma50 != null && sma200 != null && sma50 < sma200)
     risks.push({
       label: 'Bearish trend structure',
-      detail: 'SMA50 below SMA200 — longer-term trend has rolled over.',
+      detail: 'SMA50 below SMA200 - longer-term trend has rolled over.',
     });
 
   if (volatility != null && volatility > 0.6)
     risks.push({
       label: 'High realized volatility',
-      detail: `Annualized volatility ~${(volatility * 100).toFixed(0)}% — size positions accordingly.`,
+      detail: `Annualized volatility ~${(volatility * 100).toFixed(0)}% - size positions accordingly.`,
     });
 
   if (data.valuation?.peRatio != null && data.valuation.peRatio > 40)

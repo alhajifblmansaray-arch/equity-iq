@@ -84,7 +84,7 @@ export default function Dashboard() {
         {data && !loading && <ReportTabs data={data} />}
       </div>
 
-      {/* Sticky right sidebar — only when a report is loaded, xl+ screens */}
+      {/* Sticky right sidebar - only when a report is loaded, xl+ screens */}
       {data && !loading && (
         <div className="hidden xl:block w-72 flex-shrink-0">
           <TickerSidebar data={data} />
@@ -263,7 +263,7 @@ function Hero({ onSearch, userName }: { onSearch: (t: string) => void; userName?
       </motion.h1>
 
       <motion.p {...fade(0.12)} className="text-ink-secondary text-lg mt-5 max-w-xl mx-auto leading-relaxed">
-        Search any US ticker for a full research report — snapshot, charts, technicals,
+        Search any US ticker for a full research report - snapshot, charts, technicals,
         sentiment, and a scored verdict.
       </motion.p>
 

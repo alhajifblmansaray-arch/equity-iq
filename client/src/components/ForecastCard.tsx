@@ -154,7 +154,7 @@ export default function ForecastCard({ data }: Props) {
             <AccuracyBadge ticker={ticker} />
           </div>
           <p className="text-ink-secondary text-[14px] mt-2 max-w-2xl leading-relaxed">
-            The 1-hour view is live and auto-refreshes. Tap any other horizon to model it — each
+            The 1-hour view is live and auto-refreshes. Tap any other horizon to model it - each
             weighs inputs specific to that timeframe. Confidence is calibrated against the model's
             own track record for this ticker.
           </p>
@@ -166,7 +166,7 @@ export default function ForecastCard({ data }: Props) {
         )}
       </div>
 
-      {/* All-horizons at a glance — appears once any forecast loads */}
+      {/* All-horizons at a glance - appears once any forecast loads */}
       {anyDone && <HorizonsGlance jobs={jobs} onSelect={setSel} selected={sel} />}
 
       {/* Horizon sub-tabs */}
@@ -202,7 +202,7 @@ export default function ForecastCard({ data }: Props) {
         })}
       </div>
 
-      {/* Selected horizon panel — animated on tab switch */}
+      {/* Selected horizon panel - animated on tab switch */}
       <AnimatePresence mode="wait">
         <motion.div
           key={sel}
@@ -221,7 +221,7 @@ export default function ForecastCard({ data }: Props) {
       </AnimatePresence>
 
       <p className="text-[11px] text-ink-tertiary mt-5 leading-relaxed">
-        Model output, not investment advice. Short-horizon moves are near-random — confidence is
+        Model output, not investment advice. Short-horizon moves are near-random - confidence is
         kept honest and improves as the model accumulates a graded track record.
       </p>
     </div>
@@ -408,7 +408,7 @@ function HorizonPanel({
       {/* Verdict strip */}
       <VerdictStrip f={single} />
 
-      {/* Main detail panel — confidence gauge + data */}
+      {/* Main detail panel - confidence gauge + data */}
       <HorizonDetail f={single} current={fc.current_price} />
 
       {/* Reasoning toggle */}
@@ -698,7 +698,7 @@ function ConfidenceGauge({
               ? 'Signals align strongly in one direction.'
               : confidence === 'medium'
               ? 'Some disagreement across signals.'
-              : 'High uncertainty — signals conflict.'}
+              : 'High uncertainty - signals conflict.'}
           </p>
           {/* Probability bar */}
           <div>

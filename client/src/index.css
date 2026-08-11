@@ -6,19 +6,20 @@
 
 :root,
 :root[data-theme='light'] {
-  --cream: #F5F1EB;
-  --cream-tint: #EFEAE0;
+  --cream: #FFFFFF;
+  --cream-tint: #F4F5F5;
   --surface: #FFFFFF;
-  --hairline: #E8E2D9;
-  --ink: #1A1A1A;
-  --ink-secondary: #6B6B6B;
-  --ink-tertiary: #9A9A9A;
+  --hairline: #E6E8E7;
+  --ink: #0F1211;
+  --ink-secondary: #5B6360;
+  --ink-tertiary: #8A9390;
+  --brand: #10B981;
   --forest: #0E8A5F;
   --brick: #C04E40;
   --amber: #B8853A;
   --dusty: #3D6E8E;
-  --skel-mid: #f0ebe0;
-  --canvas: #E8E1D3;
+  --skel-mid: #EFF1F0;
+  --canvas: #F7F8F8;
 
   /* Glass */
   --glass-bg: rgba(255, 255, 255, 0.42);
@@ -28,7 +29,7 @@
     rgba(255,255,255,0.10) 38%,
     rgba(255,255,255,0.26) 100%
   );
-  --glass-sidebar-bg: rgba(248, 245, 240, 0.46);
+  --glass-sidebar-bg: rgba(255, 255, 255, 0.55);
   --glass-sidebar-sheen: linear-gradient(
     180deg,
     rgba(255,255,255,0.58) 0%,
@@ -40,18 +41,18 @@
   /* Layered, dimensional shadow — far more depth than before */
   --glass-shadow:
     0 0 0 0.5px rgba(255, 255, 255, 0.50),
-    0 1px 2px  rgba(40, 28, 12, 0.04),
-    0 4px 12px rgba(40, 28, 12, 0.06),
-    0 16px 40px rgba(40, 28, 12, 0.10),
-    0 40px 80px rgba(40, 28, 12, 0.12),
+    0 1px 2px  rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.05),
+    0 16px 40px rgba(0, 0, 0, 0.07),
+    0 40px 80px rgba(0, 0, 0, 0.08),
     inset 0 1.5px 0 rgba(255, 255, 255, 1.0),
-    inset 0 -1px 0 rgba(40, 28, 12, 0.04);
+    inset 0 -1px 0 rgba(0, 0, 0, 0.04);
 
   /* Orbs */
-  --orb-1: rgba(46, 93, 67, 0.30);
-  --orb-2: rgba(184, 133, 58, 0.26);
-  --orb-3: rgba(61, 110, 142, 0.22);
-  --orb-4: rgba(192, 78, 64, 0.17);
+  --orb-1: rgba(16, 185, 129, 0.14);
+  --orb-2: rgba(16, 185, 129, 0.08);
+  --orb-3: rgba(15, 18, 17, 0.05);
+  --orb-4: rgba(16, 185, 129, 0.06);
 
   /* Sidebar chips */
   --glass-item-active: rgba(255, 255, 255, 0.72);
@@ -75,28 +76,29 @@
 }
 
 :root[data-theme='dark'] {
-  --cream: #14110D;
-  --cream-tint: #231F19;
-  --surface: #1C1915;
-  --hairline: #342E26;
-  --ink: #F2EEE6;
-  --ink-secondary: #B4AFA6;
-  --ink-tertiary: #7E7870;
+  --cream: #0B0D0C;
+  --cream-tint: #171A19;
+  --surface: #121514;
+  --hairline: #262B29;
+  --ink: #F4F6F5;
+  --ink-secondary: #A8B0AD;
+  --ink-tertiary: #737B78;
+  --brand: #34D399;
   --forest: #34D399;
   --brick: #E88B7E;
   --amber: #DDAE63;
   --dusty: #87ADCC;
-  --skel-mid: #2E2920;
-  --canvas: #14110D;
+  --skel-mid: #1D211F;
+  --canvas: #0B0D0C;
 
-  --glass-bg: rgba(26, 22, 17, 0.42);
+  --glass-bg: rgba(18, 21, 20, 0.46);
   --glass-sheen: linear-gradient(
     140deg,
     rgba(255,255,255,0.13) 0%,
     rgba(255,255,255,0.02) 40%,
     rgba(255,255,255,0.07) 100%
   );
-  --glass-sidebar-bg: rgba(18, 15, 11, 0.50);
+  --glass-sidebar-bg: rgba(11, 13, 12, 0.55);
   --glass-sidebar-sheen: linear-gradient(
     180deg,
     rgba(255,255,255,0.11) 0%,
@@ -114,10 +116,10 @@
     inset 0 1.5px 0 rgba(255, 255, 255, 0.20),
     inset 0 -1px 0 rgba(0, 0, 0, 0.25);
 
-  --orb-1: rgba(111, 184, 154, 0.18);
-  --orb-2: rgba(221, 174, 99, 0.15);
-  --orb-3: rgba(135, 173, 204, 0.13);
-  --orb-4: rgba(232, 139, 126, 0.11);
+  --orb-1: rgba(52, 211, 153, 0.13);
+  --orb-2: rgba(52, 211, 153, 0.07);
+  --orb-3: rgba(255, 255, 255, 0.04);
+  --orb-4: rgba(52, 211, 153, 0.05);
 
   --glass-item-active: rgba(255, 255, 255, 0.15);
   --glass-item-hover: rgba(255, 255, 255, 0.07);
@@ -127,11 +129,11 @@
   --panel-border: rgba(255, 255, 255, 0.07);
   --panel-shadow: inset 0 1px 3px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.10);
 
-  --btn-ink-top: #DED9D0;
-  --btn-ink-bot: #F2EEE6;
+  --btn-ink-top: #E7EAE9;
+  --btn-ink-bot: #F4F6F5;
   --btn-ink-shine: rgba(255,255,255,0.18);
   --btn-ink-press: rgba(0,0,0,0.12);
-  --btn-ink-glow: rgba(200,195,185,0.20);
+  --btn-ink-glow: rgba(200,205,203,0.20);
   --btn-forest-top: #34D399;
   --btn-forest-bot: #10B981;
   --btn-forest-glow: rgba(52,211,153,0.32);
@@ -236,39 +238,14 @@ body {
     border: 1px solid rgba(154, 154, 154, 0.18);
   }
 
-  /* ── Buttons (crafted, not generic) ─────────────────── */
+  /* ── Buttons ────────────────────────────────────────── */
 
-  /* Primary — dimensional ink button */
-  .btn-primary {
-    background: linear-gradient(180deg, var(--btn-ink-top) 0%, var(--btn-ink-bot) 100%);
-    color: var(--cream);
-    box-shadow:
-      inset 0 1.5px 0 var(--btn-ink-shine),
-      inset 0 -1px 0 var(--btn-ink-press),
-      0 1px 2px rgba(0,0,0,0.12),
-      0 3px 10px var(--btn-ink-glow);
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold;
-    letter-spacing: -0.014em;
-    transition: box-shadow 120ms ease, transform 100ms ease, opacity 150ms ease;
-  }
-  .btn-primary:hover {
-    box-shadow:
-      inset 0 1.5px 0 var(--btn-ink-shine),
-      inset 0 -1px 0 var(--btn-ink-press),
-      0 2px 4px rgba(0,0,0,0.16),
-      0 8px 20px var(--btn-ink-glow);
-    transform: translateY(-1px);
-  }
-  .btn-primary:active {
-    transform: translateY(0px);
-    opacity: 0.90;
-  }
-  .btn-primary:disabled {
-    opacity: 0.46;
-    pointer-events: none;
-  }
-
-  /* Forest — branded CTA */
+  /*
+    Primary and forest are the same brand green, drawn from --brand so they
+    always match the logo mark. They stay separate class names because call
+    sites across the app use both.
+  */
+  .btn-primary,
   .btn-forest {
     background: linear-gradient(180deg, var(--btn-forest-top) 0%, var(--btn-forest-bot) 100%);
     color: #fff;
@@ -279,8 +256,9 @@ body {
       0 4px 14px var(--btn-forest-glow);
     @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold;
     letter-spacing: -0.014em;
-    transition: box-shadow 120ms ease, transform 100ms ease;
+    transition: box-shadow 120ms ease, transform 100ms ease, opacity 150ms ease;
   }
+  .btn-primary:hover,
   .btn-forest:hover {
     transform: translateY(-1px);
     box-shadow:
@@ -289,7 +267,16 @@ body {
       0 2px 4px rgba(5,150,105,0.28),
       0 8px 24px var(--btn-forest-glow);
   }
-  .btn-forest:active { transform: translateY(0); opacity: 0.92; }
+  .btn-primary:active,
+  .btn-forest:active {
+    transform: translateY(0px);
+    opacity: 0.92;
+  }
+  .btn-primary:disabled,
+  .btn-forest:disabled {
+    opacity: 0.46;
+    pointer-events: none;
+  }
 
   /* Ghost — glass morphism button */
   .btn-ghost {

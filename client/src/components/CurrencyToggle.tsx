@@ -7,7 +7,7 @@ const OPTIONS: Array<{ code: Currency; flag: string }> = [
 ];
 
 /**
- * Segmented CAD/USD switch. CAD sits first because it is the reporting default —
+ * Segmented CAD/USD switch. CAD sits first because it is the reporting default -
  * USD is the opt-in view.
  */
 export default function CurrencyToggle({ compact = false }: { compact?: boolean }) {

@@ -61,7 +61,7 @@ export default function ChallengePage() {
         </div>
         <h1 className="font-serif text-4xl md:text-5xl tracking-tight2">Stock of the Week</h1>
         <p className="text-ink-secondary mt-2 text-[15px]">
-          Every Monday, a new stock. Will it go up or down by Friday? No money involved — just your prediction.
+          Every Monday, a new stock. Will it go up or down by Friday? No money involved - just your prediction.
         </p>
       </header>
 

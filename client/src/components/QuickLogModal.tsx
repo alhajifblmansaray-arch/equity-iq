@@ -78,7 +78,7 @@ function ParsePreview({ parsed, onConfirm, onRetry }: { parsed: ParsedTrade; onC
       {parsed.confidence && parsed.confidence !== 'high' && (
         <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-400">
           <AlertCircle size={12} />
-          Confidence: {parsed.confidence} — review all fields before saving.
+          Confidence: {parsed.confidence} - review all fields before saving.
         </div>
       )}
 
@@ -87,7 +87,7 @@ function ParsePreview({ parsed, onConfirm, onRetry }: { parsed: ParsedTrade; onC
           onClick={onConfirm}
           className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-forest text-white text-sm font-medium hover:bg-forest/90 transition-all"
         >
-          <CheckCircle2 size={14} /> Use this — fill form
+          <CheckCircle2 size={14} /> Use this - fill form
         </button>
         <button
           onClick={onRetry}
@@ -182,7 +182,7 @@ export default function QuickLogModal({ prefillTicker, prefillResearchId, prefil
                 </div>
                 <div>
                   <p className="text-sm font-medium text-ink">Screenshot parser</p>
-                  <p className="text-xs text-ink-secondary">Paste or upload broker confirmation images — AI extracts everything</p>
+                  <p className="text-xs text-ink-secondary">Paste or upload broker confirmation images - AI extracts everything</p>
                 </div>
               </button>
 
@@ -233,7 +233,7 @@ export default function QuickLogModal({ prefillTicker, prefillResearchId, prefil
               <Camera size={28} className="mx-auto text-ink-secondary mb-2" />
               <p className="text-sm font-medium text-ink mb-1">Drop screenshots here</p>
               <p className="text-xs text-ink-secondary">Or click to upload · Or paste with Cmd+V</p>
-              <p className="text-xs text-ink-secondary/60 mt-1">Up to 4 images — entry confirmation, exit confirmation, Greeks page</p>
+              <p className="text-xs text-ink-secondary/60 mt-1">Up to 4 images - entry confirmation, exit confirmation, Greeks page</p>
               <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={e => e.target.files && handleFiles(e.target.files)} />
             </div>
 
@@ -315,7 +315,7 @@ export default function QuickLogModal({ prefillTicker, prefillResearchId, prefil
         {/* Parse result preview */}
         {parsed && (
           <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <p className="text-xs text-ink-secondary mb-3">Review what was extracted — you can edit everything in the next step.</p>
+            <p className="text-xs text-ink-secondary mb-3">Review what was extracted - you can edit everything in the next step.</p>
             <ParsePreview
               parsed={parsed}
               onConfirm={() => onConfirm(parsed)}

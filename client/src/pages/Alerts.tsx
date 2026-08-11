@@ -478,7 +478,7 @@ function CreateAlertCard({ onCreated }: { onCreated: () => void }) {
       {/* No extra input needed for MACD / vol spike */}
       {!needsPrice && !needsThreshold && (
         <p className="text-[12px] text-ink-secondary mt-2">
-          No threshold needed — this alert triggers automatically on {selType.desc.toLowerCase()}.
+          No threshold needed - this alert triggers automatically on {selType.desc.toLowerCase()}.
         </p>
       )}
 

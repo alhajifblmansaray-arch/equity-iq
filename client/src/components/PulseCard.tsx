@@ -286,7 +286,7 @@ function CongressTile({ trades }: { trades: CongressionalTrade[] }) {
 
 function OptionsTile({ flow }: { flow: OptionsFlow }) {
   const pcr = flow.putCallRatioOI;
-  let pcrLabel = '—';
+  let pcrLabel = '-';
   let pcrColor = 'var(--ink-tertiary)';
   if (pcr != null) {
     pcrLabel = pcr.toFixed(2);
@@ -321,7 +321,7 @@ function OptionsTile({ flow }: { flow: OptionsFlow }) {
         />
         <Stat
           label="Avg IV"
-          value={flow.avgImpliedVol != null ? `${(flow.avgImpliedVol * 100).toFixed(0)}%` : '—'}
+          value={flow.avgImpliedVol != null ? `${(flow.avgImpliedVol * 100).toFixed(0)}%` : '-'}
           sub="implied volatility"
         />
       </div>

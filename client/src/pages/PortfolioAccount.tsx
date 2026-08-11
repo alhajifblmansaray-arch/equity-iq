@@ -113,7 +113,7 @@ export default function PortfolioAccount() {
           <p className="text-xs text-ink-secondary mb-1">{shortAccountName(accountName)}</p>
           <div className="flex items-baseline gap-2">
             <h1 className="text-4xl font-semibold text-ink tracking-tight tabular-nums">
-              {loading ? '—' : `$${stats.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              {loading ? '-' : `$${stats.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </h1>
             <span className="text-ink-secondary text-sm font-medium">{cur}</span>
           </div>

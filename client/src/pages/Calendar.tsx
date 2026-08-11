@@ -53,7 +53,7 @@ function fmtWeekRange(monday: Date) {
   const m = monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const f = friday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const year = monday.getFullYear();
-  return `${m} – ${f}, ${year}`;
+  return `${m} - ${f}, ${year}`;
 }
 
 const TIMING: Record<string, { label: string; icon: string; color: string }> = {
@@ -244,7 +244,7 @@ export default function CalendarPage() {
                   {/* Event chips */}
                   {dayEvents.length === 0 ? (
                     <div className="flex-1 flex items-center justify-center text-[11px] text-ink-tertiary py-4">
-                      —
+                      -
                     </div>
                   ) : (
                     dayEvents.slice(0, 6).map((e) => {

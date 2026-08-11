@@ -105,7 +105,7 @@ export default function ComparePage() {
         </div>
         <h1 className="font-serif text-4xl md:text-5xl tracking-tight2">Head to head</h1>
         <p className="text-ink-secondary mt-2 text-[15px] max-w-2xl">
-          Drop two tickers — see their verdicts duel, watch them race normalized to 100, and find out
+          Drop two tickers - see their verdicts duel, watch them race normalized to 100, and find out
           who wins each fundamental.
         </p>
       </header>
@@ -199,7 +199,7 @@ function Compared({ a, b }: { a: ResearchReport; b: ResearchReport }) {
       valB: b.snapshot?.price,
       fmt: (v) => `$${fmtPrice(v)}`,
       higherIsBetter: false,
-      explain: 'Last close — not a quality signal on its own.',
+      explain: 'Last close - not a quality signal on its own.',
     },
     {
       label: '90d return',
@@ -322,7 +322,7 @@ function Compared({ a, b }: { a: ResearchReport; b: ResearchReport }) {
     return rows;
   }, [a, b]);
 
-  // Radar axes — 5 dimensions on 0..1 scales
+  // Radar axes - 5 dimensions on 0..1 scales
   const axes = useMemo(() => buildRadarAxes(a, b), [a, b]);
 
   return (
@@ -509,7 +509,7 @@ function Compared({ a, b }: { a: ResearchReport; b: ResearchReport }) {
           ))}
         </div>
         <p className="text-[11px] text-ink-tertiary mt-5">
-          Bars show how close the two are — fully extended means one side is 2× or more of the other.
+          Bars show how close the two are - fully extended means one side is 2× or more of the other.
         </p>
       </div>
 
@@ -618,18 +618,18 @@ function BattleRow({
           className="text-[13px] tabular-nums font-medium"
           style={{ color: colorA }}
         >
-          {row.valA != null ? row.fmt(row.valA) : '—'}
+          {row.valA != null ? row.fmt(row.valA) : '-'}
         </span>
         <span className="text-[11px] uppercase tracking-eyebrow text-ink-tertiary">{row.label}</span>
         <span
           className="text-[13px] tabular-nums font-medium"
           style={{ color: colorB }}
         >
-          {row.valB != null ? row.fmt(row.valB) : '—'}
+          {row.valB != null ? row.fmt(row.valB) : '-'}
         </span>
       </div>
       <div className="flex items-center gap-1.5">
-        {/* Left half (A) — fills right-to-left */}
+        {/* Left half (A) - fills right-to-left */}
         <div className="flex-1 h-2 rounded-full overflow-hidden relative" style={{ background: 'var(--cream-tint)' }}>
           <div
             className="absolute right-0 top-0 h-full rounded-full transition-all"
@@ -640,7 +640,7 @@ function BattleRow({
           />
         </div>
         <span className="w-1 h-3 rounded-full" style={{ background: 'var(--hairline)' }} />
-        {/* Right half (B) — fills left-to-right */}
+        {/* Right half (B) - fills left-to-right */}
         <div className="flex-1 h-2 rounded-full overflow-hidden relative" style={{ background: 'var(--cream-tint)' }}>
           <div
             className="absolute left-0 top-0 h-full rounded-full transition-all"
@@ -710,7 +710,7 @@ function EmptyState() {
       <GitCompareArrows size={28} className="mx-auto mb-3 text-ink-tertiary" />
       <h3 className="font-serif text-2xl tracking-tight1 mb-2">Pick two tickers</h3>
       <p className="text-ink-secondary text-sm">
-        Search above — add the first one, then the second. Then watch them go.
+        Search above - add the first one, then the second. Then watch them go.
       </p>
     </div>
   );

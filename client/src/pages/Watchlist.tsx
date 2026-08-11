@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Activity,
-  ArrowRight,
   BarChart2,
   Star,
   TrendingDown,
@@ -57,7 +56,7 @@ export default function WatchlistPage() {
             Open a stock from the dashboard and click <strong>Save</strong> to add it.
           </p>
           <Link to="/dashboard" className="btn-primary inline-flex mx-auto">
-            Go to dashboard <ArrowRight size={14} className="ml-1.5" />
+            Go to dashboard 
           </Link>
         </div>
       ) : (
@@ -197,7 +196,7 @@ export default function WatchlistPage() {
 
 function RsiBadge({ rsi, loading }: { rsi: number | null; loading: boolean }) {
   if (loading) return <div className="skel w-12 h-7 rounded-lg" />;
-  if (rsi == null) return <span className="text-[11px] text-ink-tertiary">—</span>;
+  if (rsi == null) return <span className="text-[11px] text-ink-tertiary">-</span>;
 
   const color =
     rsi >= 70
@@ -224,7 +223,7 @@ function RsiBadge({ rsi, loading }: { rsi: number | null; loading: boolean }) {
 
 function MacdBadge({ macd, loading }: { macd: number | null; loading: boolean }) {
   if (loading) return <div className="skel w-12 h-7 rounded-lg" />;
-  if (macd == null) return <span className="text-[11px] text-ink-tertiary">—</span>;
+  if (macd == null) return <span className="text-[11px] text-ink-tertiary">-</span>;
 
   const bullish = macd > 0;
   const color = bullish ? 'var(--forest)' : 'var(--brick)';
@@ -257,7 +256,7 @@ function TrendBadge({
   loading: boolean;
 }) {
   if (loading) return <div className="skel w-10 h-7 rounded-lg" />;
-  if (!price || !sma50 || !sma200) return <span className="text-[11px] text-ink-tertiary">—</span>;
+  if (!price || !sma50 || !sma200) return <span className="text-[11px] text-ink-tertiary">-</span>;
 
   const above50 = price > sma50;
   const above200 = price > sma200;

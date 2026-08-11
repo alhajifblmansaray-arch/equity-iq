@@ -158,7 +158,7 @@ export default function ProfilePage() {
         <div className="card animate-fadeUp animate-delay-1">
           <div className="eyebrow mb-1">Experience level</div>
           <p className="text-[13px] text-ink-secondary mb-4">
-            This controls how data is presented — beginner mode uses plain language, advanced shows everything.
+            This controls how data is presented - beginner mode uses plain language, advanced shows everything.
           </p>
           <div className="space-y-2">
             {MODE_OPTIONS.map((m) => (
@@ -259,7 +259,7 @@ export default function ProfilePage() {
             <div className="font-serif text-xl tracking-tight1">
               {user?.createdAt
                 ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                : '—'}
+                : '-'}
             </div>
           </div>
         </div>

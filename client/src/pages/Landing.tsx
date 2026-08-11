@@ -1,7 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  ArrowRight,
   BarChart2,
   Brain,
   Lock,
@@ -11,6 +10,7 @@ import {
   Zap,
 } from '../lib/icons';
 import Logo from '../components/Logo';
+import Footer from '../components/Footer';
 import { useAuth } from '../contexts/AuthContext';
 
 const SAMPLE_TICKERS = ['NVDA', 'AAPL', 'TSLA', 'SOFI', 'IONQ', 'PLTR', 'MSFT', 'AMZN'];
@@ -48,7 +48,7 @@ export default function Landing() {
           <nav className="flex items-center gap-2">
             {user ? (
               <Link to="/dashboard" className="btn-forest">
-                Open dashboard <ArrowRight size={15} />
+                Open dashboard
               </Link>
             ) : (
               <>
@@ -88,19 +88,19 @@ export default function Landing() {
               {...fade(0.12)}
               className="mt-5 text-lg md:text-xl text-ink-secondary leading-relaxed max-w-lg"
             >
-              Type a ticker, get the full picture — snapshot, technicals, fundamentals, sentiment,
+              Type a ticker, get the full picture - snapshot, technicals, fundamentals, sentiment,
               and a scored verdict. Clean numbers. No noise.
             </motion.p>
 
             <motion.div {...fade(0.18)} className="mt-8 flex flex-wrap gap-3">
               {user ? (
                 <Link to="/dashboard" className="btn-forest text-base px-6 py-3">
-                  Open dashboard <ArrowRight size={17} />
+                  Open dashboard
                 </Link>
               ) : (
                 <>
                   <Link to="/signup" state={authState} className="btn-forest text-base px-6 py-3">
-                    Get started — free <ArrowRight size={17} />
+                    Get started - free
                   </Link>
                   <Link to="/login" state={authState} className="btn-ghost text-base px-6 py-3">
                     Log in
@@ -253,16 +253,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── Footer ───────────────────────────────────────────────────────── */}
-      <footer style={{ borderTop: '1px solid var(--hairline)' }}>
-        <div className="max-w-7xl mx-auto px-6 md:px-10 py-10 flex flex-wrap items-center justify-between gap-4 text-sm text-ink-tertiary">
-          <div className="flex items-center gap-3">
-            <Logo size="sm" />
-            <span>· Research, not advice.</span>
-          </div>
-          <span>© {new Date().getFullYear()} EquityIQ.</span>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
@@ -376,21 +367,21 @@ const FEATURES = [
     icon: <BarChart2 size={20} />,
     eyebrow: 'Multi-source',
     title: 'Real market data',
-    body: 'Quotes, history, fundamentals, and news aggregated from Polygon, Finnhub, Alpha Vantage, and Yahoo — with automatic fallback.',
+    body: 'Quotes, history, fundamentals, and news aggregated from Polygon, Finnhub, Alpha Vantage, and Yahoo - with automatic fallback.',
     color: 'var(--dusty)',
   },
   {
     icon: <Brain size={20} />,
     eyebrow: 'AI-scored',
     title: 'A verdict, not a wall of charts',
-    body: 'Every report rolls into one score out of 100 — with the factors shown transparently. Plus AI forecasts across four time horizons.',
+    body: 'Every report rolls into one score out of 100 - with the factors shown transparently. Plus AI forecasts across four time horizons.',
     color: 'var(--forest)',
   },
   {
     icon: <Lock size={20} />,
     eyebrow: 'Private',
     title: 'Your watchlist, your data',
-    body: 'Sign in once, save tickers, get live price feeds. No tracking pixels, no email blasts — just research.',
+    body: 'Sign in once, save tickers, get live price feeds. No tracking pixels, no email blasts - just research.',
     color: 'var(--amber)',
   },
 ];
@@ -398,7 +389,7 @@ const FEATURES = [
 const HOW_STEPS = [
   {
     title: 'Search a ticker',
-    body: 'Type any US equity symbol. We pull data from multiple sources in parallel — quotes, history, fundamentals, options flow, and news.',
+    body: 'Type any US equity symbol. We pull data from multiple sources in parallel - quotes, history, fundamentals, options flow, and news.',
   },
   {
     title: 'Read the report',

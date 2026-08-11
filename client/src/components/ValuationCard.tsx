@@ -9,18 +9,18 @@ export default function ValuationCard({ data }: Props) {
   const v = data.valuation;
   if (!v) return null;
   const cells: Array<[string, string]> = [
-    ['P/E (TTM)', v.peRatio != null ? v.peRatio.toFixed(2) + '×' : '—'],
-    ['Forward P/E', v.forwardPE != null ? v.forwardPE.toFixed(2) + '×' : '—'],
-    ['PEG', v.pegRatio != null ? v.pegRatio.toFixed(2) : '—'],
-    ['EV/EBITDA', v.evToEbitda != null ? v.evToEbitda.toFixed(2) + '×' : '—'],
-    ['P/B', v.priceToBook != null ? v.priceToBook.toFixed(2) + '×' : '—'],
-    ['P/S', v.priceToSales != null ? v.priceToSales.toFixed(2) + '×' : '—'],
-    ['EPS (TTM)', v.eps != null ? '$' + v.eps.toFixed(2) : '—'],
-    ['Beta', v.beta != null ? v.beta.toFixed(2) : '—'],
-    ['Dividend yield', v.dividendYield != null ? fmtPct(v.dividendYield * 100) : '—'],
-    ['Profit margin', v.profitMargin != null ? fmtPct(v.profitMargin * 100) : '—'],
-    ['Operating margin', v.operatingMargin != null ? fmtPct(v.operatingMargin * 100) : '—'],
-    ['Return on equity', v.returnOnEquity != null ? fmtPct(v.returnOnEquity * 100) : '—'],
+    ['P/E (TTM)', v.peRatio != null ? v.peRatio.toFixed(2) + '×' : '-'],
+    ['Forward P/E', v.forwardPE != null ? v.forwardPE.toFixed(2) + '×' : '-'],
+    ['PEG', v.pegRatio != null ? v.pegRatio.toFixed(2) : '-'],
+    ['EV/EBITDA', v.evToEbitda != null ? v.evToEbitda.toFixed(2) + '×' : '-'],
+    ['P/B', v.priceToBook != null ? v.priceToBook.toFixed(2) + '×' : '-'],
+    ['P/S', v.priceToSales != null ? v.priceToSales.toFixed(2) + '×' : '-'],
+    ['EPS (TTM)', v.eps != null ? '$' + v.eps.toFixed(2) : '-'],
+    ['Beta', v.beta != null ? v.beta.toFixed(2) : '-'],
+    ['Dividend yield', v.dividendYield != null ? fmtPct(v.dividendYield * 100) : '-'],
+    ['Profit margin', v.profitMargin != null ? fmtPct(v.profitMargin * 100) : '-'],
+    ['Operating margin', v.operatingMargin != null ? fmtPct(v.operatingMargin * 100) : '-'],
+    ['Return on equity', v.returnOnEquity != null ? fmtPct(v.returnOnEquity * 100) : '-'],
   ];
 
   return (

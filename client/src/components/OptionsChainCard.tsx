@@ -197,7 +197,7 @@ export default function OptionsChainCard({ data }: Props) {
       )}
 
       <p className="text-[11px] text-ink-tertiary mt-4 leading-relaxed">
-        Options data via Polygon.io. IV, delta, and greeks shown where available. Snapshot slice — full chain requires Polygon Starter or higher.
+        Options data via Polygon.io. IV, delta, and greeks shown where available. Snapshot slice - full chain requires Polygon Starter or higher.
       </p>
     </div>
   );
@@ -347,11 +347,11 @@ function ContractCell({
   align: 'left' | 'right';
   inMoney: boolean;
 }) {
-  if (!c) return <div className={`text-${align} text-ink-tertiary`}>—</div>;
+  if (!c) return <div className={`text-${align} text-ink-tertiary`}>-</div>;
 
-  let text = '—';
-  if (field === 'iv') text = c.impliedVol != null ? `${(c.impliedVol * 100).toFixed(0)}%` : '—';
-  else if (field === 'delta') text = c.delta != null ? c.delta.toFixed(2) : '—';
+  let text = '-';
+  if (field === 'iv') text = c.impliedVol != null ? `${(c.impliedVol * 100).toFixed(0)}%` : '-';
+  else if (field === 'delta') text = c.delta != null ? c.delta.toFixed(2) : '-';
   else if (field === 'volume') text = c.volume > 0 ? c.volume.toLocaleString() : '0';
   else if (field === 'openInterest') text = c.openInterest > 0 ? c.openInterest.toLocaleString() : '0';
   else if (field === 'bidask') {

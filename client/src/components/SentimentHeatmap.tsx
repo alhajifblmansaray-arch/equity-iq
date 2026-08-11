@@ -34,7 +34,7 @@ export default function SentimentHeatmap() {
               style={{ background: bg, color: fg }}
             >
               <span className="text-[12px] font-semibold tracking-tight1">{t}</span>
-              <span className="text-[10px] mt-0.5 opacity-90">{q ? fmtPct(pct) : '—'}</span>
+              <span className="text-[10px] mt-0.5 opacity-90">{q ? fmtPct(pct) : '-'}</span>
             </Link>
           );
         })}

@@ -38,7 +38,7 @@ export default function OutlookCard({ data }: Props) {
           <h3 className="section-title">Forward view</h3>
           <p className="text-ink-secondary text-[14px] mt-2 max-w-2xl leading-relaxed">
             AI-modeled view of the industry, positioning, catalysts, sentiment, and price bias across
-            day / week / month / year horizons. Grounded in the report — won't invent dates or
+            day / week / month / year horizons. Grounded in the report - won't invent dates or
             customers it doesn't have.
           </p>
         </div>
@@ -75,7 +75,7 @@ export default function OutlookCard({ data }: Props) {
           <p>
             Click <strong>Run outlook</strong> to get a forward-looking analysis: how big the industry is, where this
             company sits in it, what catalysts are around the corner, the sentiment picture, and a probabilistic
-            price bias for 4 horizons — each grounded in the data we have on this stock.
+            price bias for 4 horizons - each grounded in the data we have on this stock.
           </p>
         </div>
       )}

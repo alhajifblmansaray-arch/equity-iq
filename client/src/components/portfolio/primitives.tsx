@@ -3,19 +3,19 @@ import type { PortfolioHolding } from '../../types';
 /* ── formatters ─────────────────────────────────────────────────────────────── */
 
 export function money(n: number | null | undefined, cur = 'CAD'): string {
-  if (n == null) return '—';
+  if (n == null) return '-';
   return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${cur}`;
 }
 
 export function dollars(n: number | null | undefined): string {
-  if (n == null) return '—';
+  if (n == null) return '-';
   const sign = n < 0 ? '−' : '+';
   return `${sign}$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-/** Compact form for headline figures — $74.8k rather than $74,811.13. */
+/** Compact form for headline figures - $74.8k rather than $74,811.13. */
 export function compact(n: number | null | undefined): string {
-  if (n == null) return '—';
+  if (n == null) return '-';
   const abs = Math.abs(n);
   if (abs >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
   if (abs >= 10_000) return `$${(n / 1000).toFixed(1)}k`;
@@ -23,7 +23,7 @@ export function compact(n: number | null | undefined): string {
 }
 
 export function pct(n: number | null | undefined): string {
-  if (n == null) return '—';
+  if (n == null) return '-';
   return `${n >= 0 ? '+' : ''}${n.toFixed(2)}%`;
 }
 
@@ -47,7 +47,7 @@ export function Monogram({ ticker, color, size = 36 }: { ticker: string; color: 
 /* ── return pill ────────────────────────────────────────────────────────────── */
 
 export function ReturnCell({ amount, percent }: { amount: number | null; percent: number | null }) {
-  if (amount == null) return <span className="text-ink-secondary text-sm">—</span>;
+  if (amount == null) return <span className="text-ink-secondary text-sm">-</span>;
   const up = amount >= 0;
   return (
     <div className="flex items-center justify-end gap-2">
@@ -166,7 +166,7 @@ export function Stat({ label, value, sub, tone }: {
 
 /* ── shared derivations ─────────────────────────────────────────────────────── */
 
-/** Largest single position as a share of the book — the simplest concentration read. */
+/** Largest single position as a share of the book - the simplest concentration read. */
 export function concentration(holdings: PortfolioHolding[]): { top: number; top3: number } {
   const values = holdings.map((h) => h.marketValue ?? 0).sort((a, b) => b - a);
   const total = values.reduce((s, v) => s + v, 0);

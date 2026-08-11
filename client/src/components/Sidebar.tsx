@@ -146,7 +146,7 @@ function SidebarBody({ onNavigate }: { onNavigate: () => void }) {
         <ThemeToggle />
       </div>
 
-      {/* Search — opens the symbol lookup dialog */}
+      {/* Search - opens the symbol lookup dialog */}
       <button
         onClick={() => setSearchOpen(true)}
         className="flex items-center gap-2.5 px-3 py-2.5 mb-4 rounded-full text-[13px] transition-all glass-chip-hover text-ink-secondary hover:text-ink"

@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useRef, useState, ReactNode } f
  *
  * Cards used to hold their result in local state, so switching dashboard tabs
  * unmounted the card and abandoned the in-flight request. By lifting the job
- * here — above the tabs and pages — a generation keeps running in the
+ * here - above the tabs and pages - a generation keeps running in the
  * background and its result is ready when you navigate back.
  *
  * Jobs are keyed by `${kind}:${ticker}` so each stock keeps its own results.
@@ -46,7 +46,7 @@ export function AiJobsProvider({ children }: { children: ReactNode }) {
   const inFlight = useRef<Set<string>>(new Set());
 
   const start = useCallback((key: string, fetcher: () => Promise<unknown>, opts?: StartOpts) => {
-    if (inFlight.current.has(key)) return; // already running — don't double-fire
+    if (inFlight.current.has(key)) return; // already running - don't double-fire
     inFlight.current.add(key);
     const silent = opts?.silent;
     setJobs((p) => {
@@ -112,7 +112,7 @@ export function useAiJob<T = unknown>(kind: AiJobKind, ticker: string) {
   };
 }
 
-/** Lightweight status peek — for tab indicators that just need loading/done. */
+/** Lightweight status peek - for tab indicators that just need loading/done. */
 export function useAiJobStatus(kind: AiJobKind, ticker: string): AiJobStatus {
   const ctx = useContext(Ctx);
   if (!ctx) return 'idle';

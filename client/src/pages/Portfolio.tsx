@@ -56,7 +56,7 @@ export default function Portfolio() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Returning from the Snaptrade portal — pull the freshly linked accounts in.
+  // Returning from the Snaptrade portal - pull the freshly linked accounts in.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('connected') !== '1') return;
@@ -106,7 +106,7 @@ export default function Portfolio() {
           <p className="text-xs text-ink-secondary mb-1.5">Total portfolio value</p>
           <div className="flex items-baseline gap-2 flex-wrap">
             <h2 className="text-4xl md:text-5xl font-semibold text-ink tracking-tight tabular-nums">
-              {loading ? '—' : `$${(s?.totalValue ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              {loading ? '-' : `$${(s?.totalValue ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </h2>
             <span className="text-ink-secondary text-sm font-medium">{cur}</span>
           </div>
@@ -126,7 +126,7 @@ export default function Portfolio() {
 
           {!!data?.unpricedTickers?.length && (
             <p className="mt-2 text-xs text-ink-tertiary">
-              Excludes {data.unpricedTickers.join(', ')} — no live price available, so this total is partial.
+              Excludes {data.unpricedTickers.join(', ')} - no live price available, so this total is partial.
             </p>
           )}
           {data && data.fxRate == null && (
@@ -166,7 +166,7 @@ export default function Portfolio() {
             <Plus size={14} /> Add holding
           </button>
           <button onClick={() => setModal({ type: 'activity' })} className="btn-forest btn-sm">
-            <ArrowRight size={14} /> Log activity
+            Log activity
           </button>
         </div>
       </div>
@@ -490,10 +490,10 @@ export function HoldingsTable({ holdings, cur, loading, onEdit, onDelete, onOpen
                       {h.quantity.toLocaleString('en-US', { maximumFractionDigits: 4 })}
                     </td>
                     <td className="px-2 py-2.5 text-right tabular-nums text-ink-secondary hidden sm:table-cell">
-                      {h.price == null ? '—' : `$${h.price.toFixed(2)}`}
+                      {h.price == null ? '-' : `$${h.price.toFixed(2)}`}
                     </td>
                     <td className="px-2 py-2.5 text-right tabular-nums font-medium text-ink">
-                      {h.marketValue == null ? '—' : `$${h.marketValue.toLocaleString('en-US', { maximumFractionDigits: 2 })}`}
+                      {h.marketValue == null ? '-' : `$${h.marketValue.toLocaleString('en-US', { maximumFractionDigits: 2 })}`}
                     </td>
                     <td className="px-4 py-2.5">
                       <ReturnCell amount={h.allTimeReturn} percent={h.allTimeReturnPct} />
@@ -605,7 +605,7 @@ function WatchlistRail() {
               <span className="font-medium text-ink text-[13px] w-14 text-left truncate">{t}</span>
               <span className="flex-1">{spark.length > 1 && <Sparkline values={spark} width={44} height={18} />}</span>
               <span className="text-right">
-                <span className="block text-[12px] tabular-nums text-ink">{q?.price != null ? `$${q.price.toFixed(2)}` : '—'}</span>
+                <span className="block text-[12px] tabular-nums text-ink">{q?.price != null ? `$${q.price.toFixed(2)}` : '-'}</span>
                 <span className={`block text-[10px] tabular-nums ${pnlColor(q?.changePct ?? null)}`}>{pct(q?.changePct ?? null)}</span>
               </span>
             </button>

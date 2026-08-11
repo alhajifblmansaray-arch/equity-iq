@@ -80,7 +80,7 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
                 value={query}
                 onChange={(e) => { setQuery(e.target.value); setCursor(0); }}
                 onKeyDown={onKeyDown}
-                placeholder="Search a symbol — AAPL, ENB.TO…"
+                placeholder="Search a symbol - AAPL, ENB.TO…"
                 className="flex-1 bg-transparent outline-none text-[15px] text-ink placeholder:text-ink-tertiary"
                 autoComplete="off"
                 spellCheck={false}
@@ -90,7 +90,7 @@ export default function SearchModal({ open, onClose }: SearchModalProps) {
               </button>
             </div>
 
-            <div className="max-h-[46vh] overflow-y-auto py-2">
+            <div className="max-h-[46dvh] overflow-y-auto py-2">
               {results.length === 0 ? (
                 <p className="px-5 py-6 text-sm text-ink-tertiary text-center">No matches. Type a full symbol to look it up.</p>
               ) : (

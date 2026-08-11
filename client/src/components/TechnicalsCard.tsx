@@ -18,10 +18,10 @@ export default function TechnicalsCard({ data }: Props) {
       </div>
 
       <div className="grid md:grid-cols-2 gap-8 items-start">
-        {/* Left — RSI gauge */}
+        {/* Left - RSI gauge */}
         <RSIGauge rsi={rsi} />
 
-        {/* Right — MACD + MAs */}
+        {/* Right - MACD + MAs */}
         <div className="space-y-6">
           <MACD macd={macd} />
           <MovingAverages sma50={sma50} sma200={sma200} price={data.snapshot?.price} />
@@ -79,7 +79,7 @@ function RSIGauge({ rsi }: { rsi?: number }) {
             </>
           )}
           <text x="90" y="86" textAnchor="middle" fontFamily="DM Serif Display" fontSize="36" fill="var(--ink)">
-            {rsi != null ? rsi.toFixed(0) : '—'}
+            {rsi != null ? rsi.toFixed(0) : '-'}
           </text>
         </svg>
         <div className="space-y-2.5">
@@ -164,14 +164,14 @@ function MovingAverages({
       <div className="space-y-2">
         <MaRow
           label="SMA 50"
-          value={sma50 != null ? `$${fmtPrice(sma50)}` : '—'}
+          value={sma50 != null ? `$${fmtPrice(sma50)}` : '-'}
           sub={price != null && sma50 != null ? (price > sma50 ? 'Price above' : 'Price below') : undefined}
           above={price != null && sma50 != null ? price > sma50 : undefined}
         />
         <div className="hairline-divider" />
         <MaRow
           label="SMA 200"
-          value={sma200 != null ? `$${fmtPrice(sma200)}` : '—'}
+          value={sma200 != null ? `$${fmtPrice(sma200)}` : '-'}
           sub={price != null && sma200 != null ? (price > sma200 ? 'Price above' : 'Price below') : undefined}
           above={price != null && sma200 != null ? price > sma200 : undefined}
         />

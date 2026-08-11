@@ -76,14 +76,14 @@ function fmtDate(iso: string, short = false) {
 function briefingNote(scan: QuickScan): string {
   const { rsi, changePct } = scan;
   if (rsi !== null) {
-    if (rsi >= 78) return `RSI ${rsi.toFixed(0)} — heavily overbought. Strong momentum but elevated reversal risk.`;
-    if (rsi >= 68) return `RSI ${rsi.toFixed(0)} — running hot. Can keep climbing, but consider position size.`;
-    if (rsi <= 22) return `RSI ${rsi.toFixed(0)} — deeply oversold. Potential bounce candidate, but confirm the thesis.`;
-    if (rsi <= 32) return `RSI ${rsi.toFixed(0)} — oversold territory. Could be a value opportunity or a falling knife.`;
+    if (rsi >= 78) return `RSI ${rsi.toFixed(0)} - heavily overbought. Strong momentum but elevated reversal risk.`;
+    if (rsi >= 68) return `RSI ${rsi.toFixed(0)} - running hot. Can keep climbing, but consider position size.`;
+    if (rsi <= 22) return `RSI ${rsi.toFixed(0)} - deeply oversold. Potential bounce candidate, but confirm the thesis.`;
+    if (rsi <= 32) return `RSI ${rsi.toFixed(0)} - oversold territory. Could be a value opportunity or a falling knife.`;
   }
   if (changePct !== null) {
-    if (changePct >= 6) return `Up ${changePct.toFixed(1)}% today — strong day. Make sure you're not chasing the move.`;
-    if (changePct <= -6) return `Down ${changePct.toFixed(1)}% today — sharp sell-off. Know your reason before buying the dip.`;
+    if (changePct >= 6) return `Up ${changePct.toFixed(1)}% today - strong day. Make sure you're not chasing the move.`;
+    if (changePct <= -6) return `Down ${changePct.toFixed(1)}% today - sharp sell-off. Know your reason before buying the dip.`;
   }
   return 'Neutral session. Good conditions to evaluate without excess noise.';
 }
@@ -209,7 +209,7 @@ export default function SimulatorPage() {
             <div>
               <div className="eyebrow mb-1">Win rate</div>
               <div className="font-serif text-2xl tracking-tight1 tabular-nums text-ink-secondary">
-                {winRate !== null ? `${winRate}%` : '—'}
+                {winRate !== null ? `${winRate}%` : '-'}
                 {winRate !== null && (
                   <span className="text-[11px] font-sans text-ink-tertiary ml-1.5 font-normal">
                     ({winCount}/{closedTrades.length})
@@ -223,7 +223,7 @@ export default function SimulatorPage() {
             <div className="flex items-center gap-2 py-2.5 px-3 rounded-xl mb-3 text-[12px]"
               style={{ background: 'color-mix(in srgb, var(--forest) 8%, var(--cream-tint))' }}>
               <span className="text-forest font-semibold">Best trade:</span>
-              <span className="text-ink-secondary">{bestTrade.ticker} — </span>
+              <span className="text-ink-secondary">{bestTrade.ticker} - </span>
               <span className="text-forest font-medium tabular-nums">
                 +{bestTrade.pnlPct?.toFixed(1)}% (+${fmtPrice(bestTrade.pnl ?? 0)})
               </span>
@@ -484,7 +484,7 @@ function EquityChart({ snapshots }: { snapshots: SimSnapshot[] }) {
       <div className="card text-center py-10">
         <div className="text-3xl mb-3">📈</div>
         <h3 className="font-serif text-xl mb-1">Your equity curve starts here</h3>
-        <p className="text-ink-secondary text-sm">Make a few trades and come back — you'll see your portfolio's story plotted over time.</p>
+        <p className="text-ink-secondary text-sm">Make a few trades and come back - you'll see your portfolio's story plotted over time.</p>
       </div>
     );
   }
@@ -662,7 +662,7 @@ function RiskMetrics({ snapshots }: { snapshots: SimSnapshot[] }) {
         <div>
           <div className="text-[11px] text-ink-tertiary mb-1">Sharpe ratio</div>
           <div className="font-serif text-xl tabular-nums" style={{ color: sharpeColor }}>
-            {metrics.sharpe != null ? metrics.sharpe.toFixed(2) : '—'}
+            {metrics.sharpe != null ? metrics.sharpe.toFixed(2) : '-'}
           </div>
           <div className="text-[10px] text-ink-tertiary mt-0.5">{'≥1 = good risk/reward'}</div>
         </div>
@@ -817,7 +817,7 @@ function HoldingsTab({ portfolio, onRefresh }: { portfolio: SimPortfolio | null;
                     </div>
                   </>
                 ) : (
-                  <span className="text-ink-tertiary text-sm">—</span>
+                  <span className="text-ink-tertiary text-sm">-</span>
                 )}
               </div>
             </div>
@@ -982,18 +982,18 @@ function TradeTab({
         {/* Mode hints */}
         {mode === 'short' && (
           <div className="rounded-xl px-3 py-2 mb-4 text-[12px] text-ink-secondary" style={{ background: 'color-mix(in srgb, var(--brick) 8%, var(--cream-tint))' }}>
-            <strong className="text-brick">Short selling</strong> — borrow shares and sell them, hoping to buy back lower. You profit if the stock drops. Requires 100% margin (cash = short exposure). Max: {shortMax != null ? `${shortMax} shares` : 'loading…'}
+            <strong className="text-brick">Short selling</strong> - borrow shares and sell them, hoping to buy back lower. You profit if the stock drops. Requires 100% margin (cash = short exposure). Max: {shortMax != null ? `${shortMax} shares` : 'loading…'}
           </div>
         )}
         {mode === 'cover' && (
           <div className="rounded-xl px-3 py-2 mb-4 text-[12px] text-ink-secondary" style={{ background: 'color-mix(in srgb, var(--dusty) 8%, var(--cream-tint))' }}>
-            <strong className="text-dusty">Cover short</strong> — buy back the shares you borrowed to close your short position.
+            <strong className="text-dusty">Cover short</strong> - buy back the shares you borrowed to close your short position.
             {shortHolding && <span> You are short <strong>{Math.abs(shortHolding.shares)}</strong> shares.</span>}
           </div>
         )}
         {mode === 'limit' && (
           <div className="rounded-xl px-3 py-2 mb-4 text-[12px] text-ink-secondary" style={{ background: 'color-mix(in srgb, var(--amber) 8%, var(--cream-tint))' }}>
-            <strong className="text-amber">Limit / stop orders</strong> — set a price trigger and the trade executes automatically (checked every 5 min).
+            <strong className="text-amber">Limit / stop orders</strong> - set a price trigger and the trade executes automatically (checked every 5 min).
           </div>
         )}
 
@@ -1313,7 +1313,7 @@ function CoachTab({ portfolio }: { portfolio: SimPortfolio | null }) {
     try {
       setAdvice(await simApi.coach());
     } catch {
-      setErr('Could not generate coaching — check your connection and try again.');
+      setErr('Could not generate coaching - check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -1325,7 +1325,7 @@ function CoachTab({ portfolio }: { portfolio: SimPortfolio | null }) {
         <div className="eyebrow mb-1">AI portfolio coach</div>
         <h3 className="section-title mb-2">Personalised feedback</h3>
         <p className="text-sm text-ink-secondary mb-4">
-          Your coach reads your holdings, P&L, and trade history to give you specific, educational feedback — what you're doing well and what to work on.
+          Your coach reads your holdings, P&L, and trade history to give you specific, educational feedback - what you're doing well and what to work on.
         </p>
         <button onClick={generate} disabled={loading}
           className="btn-forest disabled:opacity-50 w-full justify-center">

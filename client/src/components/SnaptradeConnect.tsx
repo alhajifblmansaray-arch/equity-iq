@@ -147,7 +147,7 @@ export default function SnaptradeConnect({ onConnected }: SnaptradeConnectProps)
         <>
           <p className="text-xs text-ink-secondary mb-3 leading-relaxed">
             Link your brokerage to import holdings, activity and balances automatically.
-            Read-only — your broker password never reaches EquityIQ.
+            Read-only - your broker password never reaches EquityIQ.
           </p>
           <button onClick={handleConnect} disabled={loading} className="btn-forest btn-sm w-full">
             <Plus size={14} />

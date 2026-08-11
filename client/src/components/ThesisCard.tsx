@@ -182,7 +182,7 @@ export default function ThesisCard({ data }: { data: ResearchReport }) {
         </>
       ) : !error && !loading ? (
         <p className="text-ink-secondary text-[15px] leading-relaxed">
-          Press <strong>Generate</strong> to get a plain-English three-paragraph thesis — and then ask
+          Press <strong>Generate</strong> to get a plain-English three-paragraph thesis - and then ask
           follow-up questions in plain English. The model has the full report as context.
         </p>
       ) : null}

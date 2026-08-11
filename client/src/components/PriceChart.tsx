@@ -48,7 +48,7 @@ export default function PriceChart({ data }: Props) {
 
   const low = Math.min(...slice.map((b) => b.low));
   const high = Math.max(...slice.map((b) => b.high));
-  const vol = data.technicals.volatility != null ? `${(data.technicals.volatility * 100).toFixed(1)}%` : '—';
+  const vol = data.technicals.volatility != null ? `${(data.technicals.volatility * 100).toFixed(1)}%` : '-';
 
   const sma50 = data.technicals.sma50;
   const sma200 = data.technicals.sma200;

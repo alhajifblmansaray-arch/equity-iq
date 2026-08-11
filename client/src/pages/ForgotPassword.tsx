@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, ArrowRight, Mail } from '../lib/icons';
+import { AlertCircle, Mail } from '../lib/icons';
 import Logo from '../components/Logo';
 import { auth } from '../lib/api';
 
@@ -30,7 +30,7 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="px-6 md:px-10 h-16 flex items-center justify-between">
-        <Link to="/"><Logo size="md" /></Link>
+        <Logo size="md" />
         <Link to="/login" className="text-sm text-ink-secondary hover:text-ink">
           Remembered it? <span className="font-medium text-ink">Sign in</span>
         </Link>
@@ -64,7 +64,7 @@ export default function ForgotPassword() {
                     style={{ background: 'color-mix(in srgb, var(--amber) 12%, transparent)' }}
                   >
                     <p className="text-[11px] uppercase tracking-wide text-ink-tertiary mb-1">
-                      Development — no mail provider configured
+                      Development - no mail provider configured
                     </p>
                     <a href={devLink} className="text-[12px] text-ink underline break-all">{devLink}</a>
                   </div>
@@ -99,7 +99,7 @@ export default function ForgotPassword() {
                   </label>
 
                   <button type="submit" disabled={submitting} className="btn-primary w-full text-base py-3 disabled:opacity-50">
-                    {submitting ? 'Sending…' : <>Send reset link <ArrowRight size={16} className="ml-1.5" /></>}
+                    {submitting ? 'Sending…' : 'Send reset link'}
                   </button>
                 </form>
               </>

@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { AlertCircle, ArrowRight } from '../lib/icons';
+import { AlertCircle } from '../lib/icons';
 import Logo from '../components/Logo';
 import PasswordField from '../components/PasswordField';
 import { auth } from '../lib/api';
@@ -20,7 +20,7 @@ export default function ResetPassword() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Check the link before asking for a password — a dead link should say so up front.
+  // Check the link before asking for a password - a dead link should say so up front.
   useEffect(() => {
     if (!token) { setChecking(false); return; }
     auth.checkResetToken(token)
@@ -50,7 +50,7 @@ export default function ResetPassword() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="px-6 md:px-10 h-16 flex items-center justify-between">
-        <Link to="/"><Logo size="md" /></Link>
+        <Logo size="md" />
         <Link to="/login" className="text-sm text-ink-secondary hover:text-ink">
           <span className="font-medium text-ink">Sign in</span>
         </Link>
@@ -100,7 +100,7 @@ export default function ResetPassword() {
                   </label>
 
                   <button type="submit" disabled={submitting} className="btn-primary w-full text-base py-3 disabled:opacity-50">
-                    {submitting ? 'Saving…' : <>Set password and sign in <ArrowRight size={16} className="ml-1.5" /></>}
+                    {submitting ? 'Saving…' : 'Set password and sign in'}
                   </button>
                 </form>
               </>
